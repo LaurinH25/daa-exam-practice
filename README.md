@@ -17,19 +17,37 @@ Everything is built only from the course cases in `../materials`:
 
 Plus 20 concept checks (ETL overview, joins, four V's, PwC SQL slides, P-card controls).
 
-## How answers are checked
+## Control-total feedback (the improvement over the reference site)
 
-* **SQL**: the student's query runs in the browser (sql.js) on the same database they can download.
-  Its result is compared with the reference query's result: column names and column order are
-  ignored, numbers are compared at 2 decimals, and row order only counts when the question asks
-  for a sort. Feedback says what differs (column count, row count, values, order).
-* **Excel**: students work in Excel and type one final value; it is compared with a value
-  computed from the same file by the build script (with a tolerance for rounding).
-* **Regression**: predictions and turning points are checked numerically; written
-  interpretations are compared with a generated model answer and a checklist.
+The exams are reused at the real exam, so the site **checks answers without containing them**:
+
+* **Fingerprints, not answers.** The build stores only PBKDF2 fingerprints of each Excel answer
+  and of each SQL result (per column, the full row set and the row order). The page source holds
+  no answers and no reference queries; the site fingerprints the student's answer and compares.
+* **Feedback like control totals.** An SQL result is reconciled step by step: columns, row count
+  (direction only: too many / too few), column totals (which of the student's columns match),
+  how values combine into rows, and the order when a sort is asked for. Column names and column
+  order do not matter; numbers are compared at 2 decimals.
+* **Targeted hints for the traps in the cases.** For each question the build also runs typical
+  wrong approaches (refunds included in P-card totals, PreparerID matched without the business
+  unit, job code 001 turned into 1, K/M units not converted, Mo not read as monthly, boundary
+  errors, a missing year filter, …) and stores their fingerprints. If a student's result matches
+  one exactly, the site shows that hint. Sign and unit slips (×100, ×1,000) are detected for every
+  numeric answer. Mistake variants that happen to give the correct result are dropped.
+* **No solutions.** After three failed checks a method note appears (formula approach for Excel,
+  the clauses needed for SQL); the answer itself is never shown.
+* **Exam mode.** During a timed exam there is no feedback, as at the real exam. *Finish exam*
+  reconciles every answer at once; after that, checking is switched on for that exam.
+
+The fingerprints slow down guessing but are not encryption: a determined student could brute-force
+a small integer. The real safeguard is that the exam is oral and the examiner watches the work.
+
+Regression predictions are still checked against plain values, because the interpretation
+exams show a model answer anyway.
 
 No answer in the bank is typed by hand: `build/build.py` computes every value from the data,
-runs every reference SQL query and stops if one fails or returns nothing.
+runs every reference SQL query and mistake variant, and stops if a query fails, returns nothing,
+or if a method note would reveal its answer.
 
 ## Project layout
 

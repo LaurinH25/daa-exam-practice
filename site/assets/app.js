@@ -29,12 +29,11 @@
     load() { try { const raw = localStorage.getItem(KEY); if (raw) Object.assign(this.data, JSON.parse(raw)); } catch (e) { /* storage unavailable */ } },
     save() { try { localStorage.setItem(KEY, JSON.stringify(this.data)); } catch (e) { /* ignore */ } },
     q(id) { return this.data.q[id] || null; },
-    recordQ(id, ok, revealed = false) {
-      const r = this.data.q[id] || { attempts: 0, solved: false, revealedFirst: false };
-      r.attempts += revealed ? 0 : 1;
-      if (revealed && !r.solved) r.revealedFirst = true;
-      if (ok && !r.solved) { r.solved = true; r.firstTry = r.attempts === 1 && !r.revealedFirst; }
-      r.last = ok ? "ok" : (revealed ? r.last || "revealed" : "bad");
+    recordQ(id, ok) {
+      const r = this.data.q[id] || { attempts: 0, fails: 0, solved: false };
+      r.attempts++;
+      if (!ok) r.fails = (r.fails || 0) + 1;
+      if (ok && !r.solved) { r.solved = true; r.firstTry = r.attempts === 1; }
       r.at = Date.now();
       this.data.q[id] = r; this.save();
     },
@@ -43,67 +42,118 @@
   Store.load();
 
   // ------------------------------------------------------------------ answer checking
+  // Answers are stored only as fingerprints (see build/fingerprint.py): the page can
+  // confirm an answer and recognise known mistakes without containing the answer.
+  // normCell, roundTo, the separators and the sort order must match the build.
+  const SALT = "daa-practice/", ITERATIONS = 20000, CELL = "\x1f", ROW = "\x1e";
+  const enc = new TextEncoder();
+  async function fp(qid, text) {
+    const key = await crypto.subtle.importKey("raw", enc.encode(text), "PBKDF2", false, ["deriveBits"]);
+    const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: enc.encode(SALT + qid), iterations: ITERATIONS }, key, 256);
+    return [...new Uint8Array(bits)].map(b => b.toString(16).padStart(2, "0")).join("").slice(0, 32);
+  }
+  function roundTo(x, d) {
+    const p = Math.pow(10, d);
+    const s = (Math.floor(x * p + 0.5) / p).toFixed(d);
+    return s.startsWith("-") && Number(s) === 0 ? s.slice(1) : s;
+  }
+  const NUMERIC = /^[-+]?\d+(\.\d+)?([eE][-+]?\d+)?$/;
+  function normCell(v) {
+    if (v === null || v === undefined) return "∅";
+    if (typeof v === "number") return "#" + roundTo(v, 2);
+    const s = String(v).trim();
+    return NUMERIC.test(s) ? "#" + roundTo(Number(s), 2) : s.toLowerCase();
+  }
+  const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);   // UTF-16 code unit order, as in the build
+  const normText = s => String(s).toLowerCase().split(/\s+/).filter(Boolean).join(" ").replace(/^["']+|["']+$/g, "");
+
+  function parseNumber(raw) {
+    const cleaned = raw.replace(/[\s$%,]/g, "").replace(/^\((.*)\)$/, "-$1").replace(/[−–]/g, "-");
+    const v = Number(cleaned);
+    return cleaned && Number.isFinite(v) ? v : null;
+  }
+
+  // Typed (Excel) answers. Returns {ok, msg, hint}.
+  async function checkTyped(q, input) {
+    const c = q.check, raw = String(input || "").trim();
+    if (!raw) return { empty: true, msg: "Enter an answer first." };
+    let h;
+    if (c.type === "number") {
+      const v = parseNumber(raw);
+      if (v === null) return { ok: false, msg: "That is not a number. Use digits only, e.g. 1234.56." };
+      h = await fp(q.id, "num" + roundTo(v, c.decimals));
+      if (c.accept.includes(h)) return { ok: true, msg: "Correct." };
+      const m = c.mistakes.find(x => x.fp === h);
+      if (m) return { ok: false, msg: "Not correct yet.", hint: m.hint };
+      if (c.near && (await fp(q.id, "near" + roundTo(v, c.decimals - 1))) === c.near)
+        return { ok: false, msg: "Very close — check your rounding.", hint: `Give the answer with ${c.decimals} decimal${c.decimals > 1 ? "s" : ""}.` };
+      return { ok: false, msg: "Not correct yet. This is not one of the common mistakes either — retrace your steps." };
+    }
+    h = await fp(q.id, "txt" + normText(raw));
+    if (c.accept.includes(h)) return { ok: true, msg: "Correct." };
+    const m = c.mistakes.find(x => x.fp === h);
+    if (m) return { ok: false, msg: "Not correct yet.", hint: m.hint };
+    return { ok: false, msg: "Not correct yet. Check the spelling and use the exact value from the data." };
+  }
+
+  // SQL results are reconciled like control totals: columns, rows, the values in each
+  // column, how they combine into rows and (if asked) the order. Column names and the
+  // order of the columns do not matter; numbers are compared at 2 decimals.
+  async function reconcile(q, res) {
+    const c = q.check;
+    const cols = res ? res.columns.length : 0;
+    const rows = res ? res.values : [];
+    const items = [];
+    const out = { ok: false, items, hint: null };
+    if (!cols) { items.push({ ok: false, label: "Result", note: "your statement returned no table" }); return out; }
+    const norm = rows.map(r => r.map(normCell));
+    const colH = await Promise.all(res.columns.map((_, j) => fp(q.id, "col" + norm.map(r => r[j]).sort(cmp).join(CELL))));
+    const order = [...colH.keys()].sort((a, b) => cmp(colH[a], colH[b]));
+    const canon = norm.map(r => order.map(j => r[j]).join(CELL));
+    const setH = await fp(q.id, "set" + [...canon].sort(cmp).join(ROW));
+    const mistake = c.mistakes.find(m => m.fp === setH);
+    if (mistake) out.hint = mistake.hint;
+
+    items.push(cols === c.cols ? { ok: true, label: "Columns", note: `${cols} as asked` }
+      : { ok: false, label: "Columns", note: cols > c.cols ? "more columns than the question asks for" : "fewer columns than the question asks for" });
+    items.push(rows.length === c.rows ? { ok: true, label: "Rows", note: "row count reconciles" }
+      : { ok: false, label: "Rows", note: rows.length > c.rows ? "too many rows — check filters, joins and DISTINCT" : "too few rows — check filters and joins" });
+    if (rows.length !== c.rows) return out;
+
+    const pool = [...c.colHashes];
+    const marks = colH.map(h => { const i = pool.indexOf(h); if (i >= 0) pool.splice(i, 1); return i >= 0; });
+    const nMatch = marks.filter(Boolean).length;
+    items.push({ ok: nMatch === c.cols && cols === c.cols, label: "Column totals",
+      note: res.columns.map((name, j) => `${name} ${marks[j] ? "✓" : "✗"}`).join(" · ") });
+    if (nMatch !== c.cols || cols !== c.cols) return out;
+
+    const setOk = setH === c.setHash;
+    items.push({ ok: setOk, label: "Rows combine", note: setOk ? "every row matches" : "right values, combined into rows differently — check GROUP BY and joins" });
+    if (!setOk) return out;
+    if (c.ordered) {
+      const seqOk = (await fp(q.id, "seq" + canon.join(ROW))) === c.seqHash;
+      items.push({ ok: seqOk, label: "Order", note: seqOk ? "sorted as asked" : "right rows, wrong order — check ORDER BY direction and tie-break" });
+      if (!seqOk) return out;
+    }
+    out.ok = true;
+    return out;
+  }
+
+  // Plain value check, used for the interpretation exams (their model answers are shown anyway).
   function checkValue(check, input) {
     const raw = String(input || "").trim();
     if (!raw) return { ok: false, msg: "Enter an answer first." };
-    if (check.type === "number") {
-      const cleaned = raw.replace(/[\s$%,]/g, "").replace(/^\((.*)\)$/, "-$1").replace(/[−–]/g, "-");
-      const v = Number(cleaned);
-      if (!Number.isFinite(v)) return { ok: false, msg: "That is not a number. Use digits only, e.g. 1234.56 (no thousands separators needed)." };
-      const ok = Math.abs(v - check.value) <= (check.tol || 0) + 1e-9;
-      if (ok) return { ok: true, msg: `Correct: ${fmtNum(check.value, 4)}.` };
-      const ratio = check.value !== 0 ? v / check.value : null;
-      let hint = "";
-      if (ratio && Math.abs(Math.abs(ratio) - 1) < 1e-6) hint = " Check the sign.";
-      else if (ratio && [100, 0.01, 1000, 0.001].some(r => Math.abs(ratio / r - 1) < 0.01)) hint = " Check the units (percent vs. share, or thousands).";
-      else if (check.tol && Math.abs(v - check.value) <= Math.max(1, Math.abs(check.value) * 0.02)) hint = " Very close — check rounding.";
-      return { ok: false, msg: "Not correct yet." + hint };
-    }
-    const norm = s => s.toLowerCase().replace(/\s+/g, " ").replace(/^["']|["']$/g, "").trim();
-    const ok = check.accept.some(a => norm(a) === norm(raw));
-    return { ok, msg: ok ? "Correct." : "Not correct yet. Check spelling and use the exact value from the data." };
+    const v = parseNumber(raw);
+    if (v === null) return { ok: false, msg: "That is not a number." };
+    const ok = Math.abs(v - check.value) <= (check.tol || 0) + 1e-9;
+    return { ok, msg: ok ? `Correct: ${fmtNum(check.value, 4)}.` : "Not correct yet." };
   }
 
-  // SQL result comparison: column names do not matter; column order does not matter;
-  // row order matters only when the question asks for a sort.
-  function normCell(v) {
-    if (v === null || v === undefined) return "∅";
-    if (typeof v === "number") return numKey(v);
-    const s = String(v).trim();
-    if (/^[-+]?\d+(\.\d+)?([eE][-+]?\d+)?$/.test(s)) return numKey(Number(s));
-    return s.toLowerCase();
-  }
-  function numKey(n) { const r = Math.round(n * 100) / 100; return "#" + (Object.is(r, -0) ? 0 : r).toFixed(2); }
-
-  function compareResults(ref, got, ordered) {
-    if (!got) return { ok: false, msg: "Your query returned no result table." };
-    const refRows = ref.values.map(r => r.map(normCell));
-    let gotRows = got.values.map(r => r.map(normCell));
-    const nc = ref.columns.length;
-    if (got.columns.length !== nc)
-      return { ok: false, msg: `Expected ${nc} column${nc > 1 ? "s" : ""}, your result has ${got.columns.length}. Return only what the question asks for.` };
-    if (gotRows.length !== refRows.length)
-      return { ok: false, msg: `Expected ${refRows.length} row${refRows.length === 1 ? "" : "s"}, your result has ${gotRows.length}. Check your filters, joins and DISTINCT.` };
-    // Match columns by their content so SELECT order does not matter.
-    const sig = (rows, j) => rows.map(r => r[j]).sort().join("|");
-    const refSig = [...Array(nc).keys()].map(j => sig(refRows, j));
-    const gotSig = [...Array(nc).keys()].map(j => sig(gotRows, j));
-    const map = []; const used = new Set();
-    for (let j = 0; j < nc; j++) {
-      const k = gotSig.findIndex((s, i) => !used.has(i) && s === refSig[j]);
-      if (k < 0) return { ok: false, msg: `The values in column ${j + 1} ("${ref.columns[j]}") do not match. Check calculations, rounding (2 decimals) and filters.` };
-      used.add(k); map.push(k);
-    }
-    gotRows = gotRows.map(r => map.map(k => r[k]));
-    const key = r => r.join("¦");
-    if (ordered) {
-      for (let i = 0; i < refRows.length; i++)
-        if (key(refRows[i]) !== key(gotRows[i])) return { ok: false, msg: `Right rows, but the order differs from row ${i + 1}. Check ORDER BY (direction and tie-break).` };
-    } else {
-      const a = refRows.map(key).sort(), b = gotRows.map(key).sort();
-      for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return { ok: false, msg: "The columns contain the right values but they are combined into rows differently. Check your GROUP BY and joins." };
-    }
-    return { ok: true, msg: "Correct: your result matches the expected result." + (ordered ? " (Order checked.)" : "") };
+  function reportHTML(r) {
+    const list = r.items ? `<ul class="recon">${r.items.map(i => `<li class="${i.ok ? "ok" : "bad"}"><span class="mark">${i.ok ? "✓" : "✗"}</span><strong>${esc(i.label)}</strong> <span>${esc(i.note)}</span></li>`).join("")}</ul>` : "";
+    const head = r.items ? (r.ok ? "Reconciles: your result matches the expected result." : "Does not reconcile yet.") : r.msg;
+    return `<div class="feedback ${r.ok ? "ok" : "bad"}" role="status"><strong>${esc(head)}</strong>${list}
+      ${r.hint ? `<div class="hint"><strong>Hint:</strong> ${esc(r.hint)}</div>` : ""}</div>`;
   }
 
   // ------------------------------------------------------------------ sql.js
@@ -143,120 +193,130 @@
   }
 
   // ------------------------------------------------------------------ question component
+  const METHOD_AFTER = 3;   // failed checks before the method note is offered
   function datasetFiles(key) {
     const d = DS[key];
     return d.files.map((f, i) => `<a href="files/${encodeURIComponent(f)}" download>${esc(f)} <span class="muted small">${fmtSize(d.sizes[i])}</span></a>`).join("");
   }
 
-  function questionHTML(q, n) {
+  // mode "practice": check immediately. mode "exam": answers are only kept; checked at Finish.
+  function questionHTML(q, n, mode = "practice") {
     const st = Store.q(q.id);
     const d = DS[q.file];
+    const exam = mode === "exam";
     const head = `<div class="row">
         ${n ? `<span class="eyebrow">Question ${n}</span>` : ""}${subjChip(q.subject)}
         <span class="chip">${esc(q.id)}</span><span class="chip">${esc(d.label)}</span>
         <span class="chip">≈ ${fmtNum(q.minutes, 1)} min</span>
-        ${st && st.solved ? '<span class="chip ok">Solved</span>' : st ? '<span class="chip bad">Not solved yet</span>' : ""}
+        ${!exam && st && st.solved ? '<span class="chip ok">Solved</span>' : ""}
       </div>
       <p class="prompt">${esc(q.prompt)}</p>`;
+    const examNote = exam ? `<p class="muted small">Exam mode: your answer is saved and checked when you press <strong>Finish exam</strong>.</p>` : "";
+    const methodBtn = exam ? "" : `<button class="btn ghost hidden" data-act="method">Show method</button>`;
     if (q.subject === "SQL") {
-      return `<section class="card question stack" data-q="${q.id}">${head}
-        <textarea class="sql" spellcheck="false" aria-label="Your SQL query" placeholder="SELECT …">${esc(sessionDraft(q.id))}</textarea>
+      return `<section class="card question stack" data-q="${q.id}" data-mode="${mode}">${head}
+        <textarea class="sql" spellcheck="false" aria-label="Your SQL query" placeholder="SELECT …">${esc(drafts[q.id] || "")}</textarea>
         <div class="row">
-          <button class="btn" data-act="run">Run</button>
-          <button class="btn primary" data-act="check">Check answer</button>
+          <button class="btn${exam ? " primary" : ""}" data-act="run">Run</button>
+          ${exam ? "" : '<button class="btn primary" data-act="check">Check answer</button>'}
           <span class="muted small"><span class="kbd">Ctrl</span> + <span class="kbd">Enter</span> runs</span>
           <span class="spacer"></span>
-          <button class="btn ghost" data-act="schema">Tables</button>
-          <button class="btn ghost" data-act="reveal">Show solution</button>
+          <button class="btn ghost" data-act="schema">Tables</button>${methodBtn}
         </div>
+        ${examNote}
         <div class="schema hidden" data-slot="schema"></div>
         <div data-slot="feedback"></div>
+        <div data-slot="method"></div>
         <div data-slot="result"></div>
-        <div data-slot="solution"></div>
       </section>`;
     }
-    return `<section class="card question stack" data-q="${q.id}">${head}
+    return `<section class="card question stack" data-q="${q.id}" data-mode="${mode}">${head}
       <p class="muted small">Work in Excel on <strong>${esc(d.files.join(", "))}</strong>, then type your final value.</p>
       <div class="answer-row">
-        <input type="text" inputmode="decimal" aria-label="Your answer" placeholder="Your answer" value="${esc(sessionDraft(q.id))}">
-        <button class="btn primary" data-act="check">Check answer</button>
-        <button class="btn ghost" data-act="reveal">Show solution</button>
+        <input type="text" inputmode="decimal" aria-label="Your answer" placeholder="Your answer" value="${esc(drafts[q.id] || "")}">
+        ${exam ? "" : '<button class="btn primary" data-act="check">Check answer</button>'}${methodBtn}
       </div>
+      ${examNote}
       <div data-slot="feedback"></div>
-      <div data-slot="solution"></div>
+      <div data-slot="method"></div>
     </section>`;
   }
 
   const drafts = {};
-  const sessionDraft = id => drafts[id] || "";
+
+  // Grade a saved answer (used by Finish exam). Returns a report object.
+  async function gradeDraft(q) {
+    const answer = (drafts[q.id] || "").trim();
+    if (!answer) return { ok: false, msg: "No answer given." };
+    if (q.subject !== "SQL") return checkTyped(q, answer);
+    try {
+      const db = await getDB(q.file);
+      return reconcile(q, runSQL(db, answer));
+    } catch (e) { return { ok: false, msg: "SQL error: " + e.message }; }
+  }
 
   function bindQuestion(root, onResult) {
     const q = Q[root.dataset.q];
+    const exam = root.dataset.mode === "exam";
     const fb = $('[data-slot="feedback"]', root);
-    const sol = $('[data-slot="solution"]', root);
-    const show = (cls, html) => { fb.innerHTML = `<div class="feedback ${cls}" role="status">${html}</div>`; };
+    const show = html => { fb.innerHTML = html; };
+    const info = msg => show(`<div class="feedback info" role="status">${esc(msg)}</div>`);
     const field = $("textarea, input", root);
     field.addEventListener("input", () => { drafts[q.id] = field.value; });
 
-    const reveal = () => {
-      Store.recordQ(q.id, false, true);
-      if (q.subject === "SQL") {
-        const p = q.check.preview;
-        sol.innerHTML = `<h3>Reference solution</h3><pre class="code">${esc(q.solution)}</pre>
-          <p class="muted small" style="margin-top:8px">Expected result: ${q.check.rows} row${q.check.rows === 1 ? "" : "s"}${p.length < q.check.rows ? ", first " + p.length + " shown" : ""}. Other queries that return the same result are also correct.</p>
-          ${tableHTML({ columns: p[0].map((_, j) => "col " + (j + 1)), values: p })}`;
-      } else {
-        const c = q.check;
-        const ans = c.type === "number" ? fmtNum(c.value, 4) : c.accept.join(" / ");
-        sol.innerHTML = `<h3>Solution</h3><p><strong>Answer:</strong> ${esc(ans)}</p><p class="small">${esc(q.solution)}</p>`;
-      }
-      onResult && onResult();
+    const methodBtn = $('[data-act="method"]', root);
+    const updateMethod = () => {
+      const r = Store.q(q.id);
+      if (methodBtn && r && (r.solved || r.fails >= METHOD_AFTER)) methodBtn.classList.remove("hidden");
     };
-    $('[data-act="reveal"]', root).addEventListener("click", reveal);
+    if (methodBtn) {
+      updateMethod();
+      methodBtn.addEventListener("click", () => {
+        $('[data-slot="method"]', root).innerHTML = `<div class="feedback info"><strong>Method.</strong> ${esc(q.method)}
+          <div class="muted small" style="margin-top:4px">The answer itself is never shown: exam questions are reused at the exam.</div></div>`;
+      });
+    }
+    const record = r => {
+      Store.recordQ(q.id, r.ok);
+      show(reportHTML(r));
+      updateMethod();
+      onResult && onResult(r);
+    };
 
     if (q.subject !== "SQL") {
-      const check = () => {
-        const r = checkValue(q.check, field.value);
-        if (r.msg === "Enter an answer first.") return show("info", r.msg);
-        Store.recordQ(q.id, r.ok);
-        show(r.ok ? "ok" : "bad", esc(r.msg));
-        onResult && onResult();
+      const check = async () => {
+        const r = await checkTyped(q, field.value);
+        if (r.empty) return info(r.msg);
+        record(r);
       };
-      $('[data-act="check"]', root).addEventListener("click", check);
-      field.addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+      if (!exam) {
+        $('[data-act="check"]', root).addEventListener("click", check);
+        field.addEventListener("keydown", e => { if (e.key === "Enter") check(); });
+      }
       return;
     }
 
     const resultSlot = $('[data-slot="result"]', root);
     const schemaSlot = $('[data-slot="schema"]', root);
     const withDB = async fn => {
-      fb.innerHTML = `<p class="loading">Loading the ${esc(DS[q.file].label)} database…</p>`;
-      try { const db = await getDB(q.file); fb.innerHTML = ""; return fn(db); }
-      catch (e) { show("bad", esc(e.message)); }
+      show(`<p class="loading">Loading the ${esc(DS[q.file].label)} database…</p>`);
+      try { const db = await getDB(q.file); show(""); return await fn(db); }
+      catch (e) { show(`<div class="feedback bad">${esc(e.message)}</div>`); }
     };
-    const run = () => {
-      if (!field.value.trim()) return show("info", "Write a query first.");
-      withDB(db => {
-        try { resultSlot.innerHTML = tableHTML(runSQL(db, field.value)); }
-        catch (e) { resultSlot.innerHTML = ""; show("bad", "<strong>SQL error:</strong> " + esc(e.message)); }
-      });
+    const execute = db => {
+      try { const res = runSQL(db, field.value); resultSlot.innerHTML = tableHTML(res); return res; }
+      catch (e) { resultSlot.innerHTML = ""; show(`<div class="feedback bad"><strong>SQL error:</strong> ${esc(e.message)}</div>`); return null; }
     };
+    const run = () => field.value.trim() ? withDB(execute) : info("Write a query first.");
     const check = () => {
-      if (!field.value.trim()) return show("info", "Write a query first.");
-      withDB(db => {
-        let got;
-        try { got = runSQL(db, field.value); }
-        catch (e) { resultSlot.innerHTML = ""; return show("bad", "<strong>SQL error:</strong> " + esc(e.message)); }
-        resultSlot.innerHTML = tableHTML(got);
-        const ref = runSQL(db, q.check.sql);
-        const r = compareResults(ref, got.columns.length ? got : null, q.check.ordered);
-        Store.recordQ(q.id, r.ok);
-        show(r.ok ? "ok" : "bad", esc(r.msg));
-        onResult && onResult();
+      if (!field.value.trim()) return info("Write a query first.");
+      withDB(async db => {
+        const res = execute(db);
+        if (res) record(await reconcile(q, res));
       });
     };
     $('[data-act="run"]', root).addEventListener("click", run);
-    $('[data-act="check"]', root).addEventListener("click", check);
+    if (!exam) $('[data-act="check"]', root).addEventListener("click", check);
     field.addEventListener("keydown", e => {
       if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); run(); }
       if (e.key === "Tab" && !e.shiftKey) { e.preventDefault(); const s = field.selectionStart; field.setRangeText("  ", s, field.selectionEnd, "end"); }
@@ -290,7 +350,8 @@
           <ul>
             <li>One Excel data set and one SQL database from the course cases</li>
             <li>2 Excel tasks + 3 SQL tasks, about 7–10 minutes</li>
-            <li>Excel: work in the file, type the final value. SQL: write the query here — it runs in your browser and is compared with the expected result</li>
+            <li>Excel: work in the file and type the final value. SQL: write the query here — it runs in your browser</li>
+            <li>Feedback works like control totals: does your result reconcile (rows, column totals, order)? Typical mistakes get a targeted hint — the answer itself is never shown</li>
           </ul>
           <div class="row"><a class="btn primary" href="#/exams">Practise exams</a><a class="btn" href="#/questions">Single questions</a></div>
         </div>
@@ -351,10 +412,13 @@
     const total = Math.round(e.minutes * 60);
     const t = { remaining: total, elapsed: 0, running: false, h: null };
     let current = 0;
+    let finished = false;   // like the real exam: no feedback until the student hands in
+    const results = {};     // this attempt's outcome per question, shown in the sidebar after Finish
     app.innerHTML = `
       <div class="row"><a href="#/exams" class="btn ghost">← All exams</a></div>
       <p class="eyebrow" style="margin-top:8px">${e.id} · Data manipulation exam · ≈ ${fmtNum(e.minutes, 1)} minutes</p>
       <h1>${esc(examTitle(e))}</h1>
+      <p class="muted small">As at the exam, you get no feedback while you work. Press <strong>Finish exam</strong> to have every answer reconciled.</p>
       <div class="exam-layout" style="margin-top:14px">
         <aside class="sidebar">
           <div class="card timer">
@@ -369,21 +433,24 @@
           <div class="card"><h3>Files</h3><div class="files">${e.files.map(datasetFiles).join("")}</div>
             <p class="muted small" style="margin:8px 0 0">SQL databases also load here automatically when you run a query.</p></div>
           <div class="card"><h3>Questions</h3><div class="qnav" id="qnav"></div>
-            <button class="btn" id="finish" style="width:100%;margin-top:10px">Finish exam</button></div>
+            <button class="btn primary" id="finish" style="width:100%;margin-top:10px">Finish exam</button></div>
         </aside>
         <div id="qpane"></div>
       </div>`;
     const nav = $("#qnav"), pane = $("#qpane");
+    const navDot = q => finished ? (results[q.id] ? "ok" : "bad") : (drafts[q.id] || "").trim() ? "saved" : "";
     const drawNav = () => {
       nav.innerHTML = qs.map((q, i) => `<button class="${i === current ? "active" : ""}" data-i="${i}" aria-current="${i === current}">
-        <span class="dot ${Store.status(q.id)}"></span><span class="n">${String(i + 1).padStart(2, "0")}</span>${esc(q.subject)} <span class="muted small">${q.id}</span></button>`).join("");
+        <span class="dot ${navDot(q)}"></span><span class="n">${String(i + 1).padStart(2, "0")}</span>${esc(q.subject)} <span class="muted small">${q.id}</span></button>`).join("");
       $$("button", nav).forEach(b => b.addEventListener("click", () => { current = +b.dataset.i; drawQ(); }));
     };
     const drawQ = () => {
-      pane.innerHTML = questionHTML(qs[current], current + 1) + `
+      pane.innerHTML = questionHTML(qs[current], current + 1, finished ? "practice" : "exam") + `
         <div class="row" style="margin-top:12px"><button class="btn" id="prev" ${current === 0 ? "disabled" : ""}>← Previous</button><span class="spacer"></span>
         <button class="btn" id="next" ${current === qs.length - 1 ? "disabled" : ""}>Next →</button></div>`;
-      bindQuestion($(".question", pane), drawNav);
+      const root = $(".question", pane);
+      bindQuestion(root, r => { results[qs[current].id] = r.ok || results[qs[current].id]; drawNav(); });
+      $("textarea, input", root).addEventListener("input", drawNav);
       $("#prev").addEventListener("click", () => { current--; drawQ(); });
       $("#next").addEventListener("click", () => { current++; drawQ(); });
       drawNav();
@@ -405,17 +472,30 @@
       clearInterval(t.h); Object.assign(t, { remaining: total, elapsed: 0, running: false });
       $("#t-start").textContent = "Start"; $("#clock").textContent = clock(total); $("#clock").className = "clock"; $("#elapsed").textContent = "0:00";
     });
-    $("#finish").addEventListener("click", () => {
+    $("#finish").addEventListener("click", async () => {
+      const unanswered = qs.filter(q => !(drafts[q.id] || "").trim()).length;
+      if (!finished && unanswered && !confirm(`${unanswered} question${unanswered > 1 ? "s have" : " has"} no answer yet. Finish anyway?`)) return;
       clearInterval(t.h); t.running = false; $("#t-start").textContent = "Resume";
-      const correct = qs.filter(q => Store.status(q.id) === "ok").length;
+      pane.innerHTML = `<section class="card"><p class="loading">Reconciling your answers…</p></section>`;
+      const reports = [];
+      for (const q of qs) {
+        const r = await gradeDraft(q);
+        if ((drafts[q.id] || "").trim()) Store.recordQ(q.id, r.ok);
+        results[q.id] = r.ok;
+        reports.push(r);
+      }
+      finished = true;
+      const correct = reports.filter(r => r.ok).length;
       Store.data.exams[e.id] = { correct, total: qs.length, seconds: t.elapsed, at: Date.now() }; Store.save();
-      const missed = qs.filter(q => Store.status(q.id) !== "ok");
-      pane.innerHTML = `<section class="card stack"><h2>Exam summary</h2>
-        <p><strong>${correct} of ${qs.length}</strong> questions solved${t.elapsed ? ` in ${clock(t.elapsed)} (budget ${clock(total)})` : ""}.</p>
-        ${missed.length ? `<p>Not solved yet:</p><ul>${missed.map(q => `<li><a href="#/q/${q.id}">${q.id}</a> — ${esc(q.prompt)}</li>`).join("")}</ul>
-          <p class="muted small">At the oral exam you also explain how you did it — practise saying your steps out loud.</p>` : `<p>All solved. Try it again under the time limit, or <a href="#/exams">pick another exam</a>.</p>`}
-        <div class="row"><button class="btn" id="back">Back to the questions</button><a class="btn primary" href="#/exams">Next exam</a></div></section>`;
-      $("#back").addEventListener("click", drawQ);
+      pane.innerHTML = `<section class="card stack"><h2>Exam result: ${correct} of ${qs.length}</h2>
+        <p class="muted">${t.elapsed ? `Time used ${clock(t.elapsed)} of ${clock(total)}. ` : ""}Each answer is reconciled below. Open a question to keep working on it — checking is now switched on.</p>
+        ${qs.map((q, i) => `<div class="stack" style="border-top:1px solid var(--border);padding-top:12px">
+          <div class="row"><span class="eyebrow">Question ${i + 1}</span>${subjChip(q.subject)}<span class="chip">${q.id}</span><span class="spacer"></span>
+          <button class="btn" data-open="${i}">${reports[i].ok ? "Review" : "Work on it"}</button></div>
+          <p style="margin:0">${esc(q.prompt)}</p>${reportHTML(reports[i])}</div>`).join("")}
+        <p class="muted small">At the oral exam you also explain how you did it — practise saying your steps out loud.</p>
+        <div class="row"><a class="btn primary" href="#/exams">Next exam</a></div></section>`;
+      $$("[data-open]", pane).forEach(b => b.addEventListener("click", () => { current = +b.dataset.open; drawQ(); }));
       drawNav();
     });
     drawQ();

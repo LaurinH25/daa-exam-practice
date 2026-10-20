@@ -197,3 +197,14 @@ table.topics td.num { text-align: right; font-variant-numeric: tabular-nums; }
   .list-item { grid-template-columns: auto 1fr; }
   .list-item > :last-child { grid-column: 2; }
 }
+
+/* reconciliation feedback */
+ul.recon { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; color: var(--text); }
+ul.recon li { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 14px; }
+ul.recon .mark { font-weight: 700; width: 1em; }
+ul.recon li.ok .mark { color: var(--ok); }
+ul.recon li.bad .mark { color: var(--bad); }
+ul.recon li span:last-child { color: var(--muted); }
+.feedback .hint { margin-top: 8px; padding: 8px 10px; border-radius: 6px; background: var(--warn-soft); color: var(--text); }
+.feedback .hint strong { color: var(--warn); }
+.dot.saved { background: var(--sql); }

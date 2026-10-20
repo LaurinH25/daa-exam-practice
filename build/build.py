@@ -20,6 +20,8 @@ import bank_concepts  # noqa: E402
 import bank_excel  # noqa: E402
 import bank_regression  # noqa: E402
 import bank_sql  # noqa: E402
+import fingerprint  # noqa: E402
+import mistakes_sql  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ROOT / "site" / "files"
@@ -64,7 +66,17 @@ EXAM_SEED = 2026
 MIN_MINUTES, MAX_MINUTES = 7, 10
 
 
-def validate_sql(questions):
+CLAUSES = {
+    "filter": "WHERE", "like": "WHERE … LIKE", "in": "WHERE … IN (…)", "null": "IS NULL / IS NOT NULL", "count": "COUNT",
+    "distinct": "DISTINCT", "aggregate": "an aggregate (SUM / AVG / MIN / MAX)", "group_by": "GROUP BY", "having": "HAVING",
+    "sort": "ORDER BY", "limit": "LIMIT", "join": "JOIN … ON", "left_join": "LEFT JOIN", "subquery": "a subquery",
+    "case": "CASE WHEN", "date": "STRFTIME / JULIANDAY", "string": "string functions (SUBSTR, LENGTH, INSTR, TRIM)",
+    "expression": "a calculated column", "alias": "table aliases", "refund": "the sign of Amount (returns are negative)",
+}
+
+
+def secure_sql(questions):
+    """Replace each reference query by a fingerprint of its result, plus hints for known mistakes."""
     cons = {}
     for qn in questions:
         db = FILES / DATASETS[qn["file"]]["files"][0]
@@ -72,12 +84,64 @@ def validate_sql(questions):
         rows = con.execute(qn["check"]["sql"]).fetchall()
         if not rows or (len(rows) == 1 and all(v is None for v in rows[0])):
             raise SystemExit(f"{qn['id']}: reference query returns no data")
-        qn["check"]["rows"] = len(rows)
-        qn["solution"] = qn["check"]["sql"]
-        # Preview of the expected result: shown after the student checks or reveals.
-        qn["check"]["preview"] = [list(r) for r in rows[:8]]
+        ref = fingerprint.result_fingerprint(qn["id"], rows)
+        mistakes = []
+        for sql, hint in mistakes_sql.MISTAKES.get(qn["id"], []):
+            got = con.execute(sql).fetchall()
+            mf = fingerprint.result_fingerprint(qn["id"], got) if got else None
+            if mf is None or mf["setHash"] == ref["setHash"]:
+                print(f"  note: mistake variant for {qn['id']} gives the correct or an empty result; dropped")
+                continue
+            mistakes.append(dict(fp=mf["setHash"], hint=hint))
+        qn["check"] = dict(type="sql", ordered=qn["check"]["ordered"], **ref, mistakes=mistakes)
+        qn["method"] = "You will need: " + ", ".join(dict.fromkeys(CLAUSES[t] for t in qn["topics"] if t in CLAUSES)) + "."
     for c in cons.values():
         c.close()
+
+
+AUTO_HINTS = [
+    (lambda v: -v, "Right size, wrong sign: check whether the value should be negative or positive."),
+    (lambda v: v * 100, "Check the units: the question asks for a percent (e.g. 12.34), not a share."),
+    (lambda v: v / 100, "Check the units: give the percent (e.g. 12.34), not a share (0.1234)."),
+    (lambda v: v * 1000, "Off by a factor of 1,000: check K/M units or thousands."),
+    (lambda v: v / 1000, "Off by a factor of 1,000: check K/M units or thousands."),
+]
+
+
+def secure_typed(questions):
+    """Replace Excel answers by fingerprints; keep the method text (it never contains the answer)."""
+    leaks = []
+    for qn in questions:
+        c, qid = qn["check"], qn["id"]
+        mistakes = []
+        if c["type"] == "number":
+            v = c["value"]
+            secured = fingerprint.number_fingerprint(qid, v, c["tol"])
+            d = secured["decimals"]
+            candidates = [(val, hint) for val, hint in qn.pop("mistakes", [])]
+            if v != 0:
+                candidates += [(f(v), hint) for f, hint in AUTO_HINTS]
+            for val, hint in candidates:
+                h = fingerprint.number_mistake(qid, float(val), d)
+                if h not in secured["accept"] and h not in [m["fp"] for m in mistakes]:
+                    mistakes.append(dict(fp=h, hint=hint))
+            shown = fingerprint.round_to(v, d)
+            if shown in qn["solution"] and len(shown) >= 3:
+                leaks.append(qid)
+        else:
+            secured = fingerprint.text_fingerprint(qid, c["accept"])
+            for a in c["accept"]:
+                if a.isdigit() and a.startswith("0"):
+                    mistakes.append(dict(fp=fingerprint.text_mistake(qid, a.lstrip("0")),
+                                         hint="Keep the leading zeros: job codes are text (001, not 1)."))
+            for val, hint in qn.pop("mistakes", []):
+                mistakes.append(dict(fp=fingerprint.text_mistake(qid, val), hint=hint))
+            if any(a.lower() in qn["solution"].lower() for a in c["accept"] if len(a) > 3):
+                leaks.append(qid)
+        qn["check"] = dict(secured, mistakes=mistakes)
+        qn["method"] = qn.pop("solution")
+    if leaks:
+        raise SystemExit(f"method text reveals the answer for: {', '.join(leaks)}")
 
 
 def file_meta():
@@ -124,8 +188,11 @@ def make_exams(questions):
 
 def main():
     sql_q = bank_sql.QUESTIONS
-    validate_sql(sql_q)
+    unknown = set(mistakes_sql.MISTAKES) - {q["id"] for q in sql_q}
+    assert not unknown, unknown
+    secure_sql(sql_q)
     excel_q = bank_excel.build(FILES)
+    secure_typed(excel_q)
     for qn in excel_q:
         if qn["file"] in ("pay15", "pay16"):
             qn["file"] = "payroll"

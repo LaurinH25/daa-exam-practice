@@ -23,6 +23,14 @@ def text(*accept):
     return dict(type="text", accept=[str(a) for a in accept])
 
 
+def with_mistakes(questions, mistakes):
+    """Attach known wrong answers (value, hint) to the questions; the build fingerprints them."""
+    by_id = {x["id"]: x for x in questions}
+    for qid, items in mistakes.items():
+        by_id[qid]["mistakes"] = items
+    return questions
+
+
 def q(id, file, course, topics, minutes, prompt, check, solution):
     return dict(id=id, file=file, subject="Excel", course=course, topics=topics,
                 minutes=minutes, prompt=prompt, check=check, solution=solution)
@@ -61,7 +69,18 @@ def film_questions(d):
     oldest = f.EnteredOn.min()
 
     piv = "Insert ▸ PivotTable"
-    return [
+    only_sp = "Your number uses every event type. The question is about shooting permits only (EventType = Shooting Permit)."
+    allf_dur = ((f.EndDateTime - f.StartDateTime).dt.total_seconds() / 3600).mean()
+    mistakes = {
+        "F04": [(missing_zip + invalid_zip, "Blank ZipCodes are missing values (previous question), not invalid ones.")],
+        "F09": [(int((f.Category == "Student").sum()), only_sp)],
+        "F10": [(round(f["CommunityBoard(s)"].astype(str).str.contains(",").mean() * 100, 2), only_sp)],
+        "F14": [(round(allf_dur * 2) / 2, only_sp)],
+        "F16": [(round((f.StartDateTime - f.EnteredOn).dt.total_seconds().mean() / 86400), only_sp)],
+        "F20": [(int((f.Borough == "Queens").sum()), only_sp)],
+        "F21": [(round((f.Category == "Film").mean() * 100, 2), only_sp)],
+    }
+    return with_mistakes([
         q("F01", "film", FILM, ["data_profiling"], 1, "How many records (data rows, excluding the header) does the table have?",
           num(len(f), 0), "Select a column and read the Count in the status bar, or =COUNTA(A:A)-1."),
         q("F02", "film", FILM, ["data_profiling"], 0.5, "How many columns does the table have?",
@@ -71,7 +90,7 @@ def film_questions(d):
         q("F04", "film", FILM, ["data_quality"], 1.5, "How many records have a ZipCode that is present but not a valid five-digit zip code?",
           num(invalid_zip, 0), "Helper column =LEN(N2) and count values that are not 5 and not 0, or sort ZipCode ascending and inspect the smallest values."),
         q("F05", "film", FILM, ["data_profiling"], 1, "Which column has the same value for every record? Give the exact column name.",
-          text("EventAgency"), "Filter each column or use =COUNTA(UNIQUE(F2:F33503)) per column; EventAgency has one distinct value."),
+          text("EventAgency"), "Use =COUNTA(UNIQUE(range)) per column, or open each filter drop-down: the column you want shows a single entry."),
         q("F06", "film", FILM, ["date", "aggregate"], 1, "In which year was the oldest EnteredOn value entered?",
           num(oldest.year, 0), "=MIN(E2:E33503) and format as a date (or =YEAR(MIN(E:E)))."),
         q("F07", "film", FILM, ["distinct"], 1, "How many different event types are there?",
@@ -113,7 +132,7 @@ def film_questions(d):
           num(round(rig_dur, 1), 0.05), "Helper column =(D2-C2)*24; =AVERAGEIF(B:B,\"Rigging Permit\",helper)."),
         q("F24", "film", FILM, ["date", "countifs"], 1.5, "How many permits (all event types) started in 2017?",
           num(y2017, 0), '=COUNTIFS(C:C,">="&DATE(2017,1,1),C:C,"<"&DATE(2018,1,1))'),
-    ]
+    ], mistakes)
 
 
 # ---------------------------------------------------------------- ETL case 1
@@ -151,7 +170,13 @@ def case1_questions(d):
     cash2018 = clean[clean.Year == "2018"].CashN.sum()
     bad_ticker = int((clean.Ticker.str.strip() == "").sum() + clean.Ticker.str.contains(" ").sum())
     aal_dep = clean[clean.Ticker == "AAL"].DepN.sum()
-    return [
+    with_dupes = df.assign(CashN=df.Cash.map(parse_amount))
+    mistakes = {
+        "E104": [(with_dupes[with_dupes.Year == "2018"].CashN.sum(),
+                  "Aptevo's 2018 row appears twice. Remove the exact duplicate before summing.")],
+        "E105": [(int((clean.Ticker.str.strip() == "").sum()), "Blank tickers are only part of it: 'A M Z N' and 'AM ZN' contain spaces too.")],
+    }
+    return with_mistakes([
         q("E101", "case1", ETL, ["data_quality", "delimiters"], 1.5,
           "Some rows split into one column too many when the CSV is opened. How many data rows are affected?",
           num(shifted, 0), "The name 'Apple, Inc.' contains a comma but no text qualifier (\"\"), so the comma acts as a delimiter. Fix with Text to Columns / Power Query or by re-joining the two name cells."),
@@ -169,7 +194,7 @@ def case1_questions(d):
         q("E106", "case1", ETL, ["negative_numbers", "transformation"], 2,
           "Total Depreciation uses brackets for negatives in some rows. What is the sum of American Airlines' Total Depreciation for 2016–2018 as a (negative) number in dollars?",
           num(aal_dep, 1), '=-VALUE(SUBSTITUTE(SUBSTITUTE(H2,"(",""),")","")) when the value is in brackets.'),
-    ]
+    ], mistakes)
 
 
 # ---------------------------------------------------------------- ETL case 2 & 3
@@ -193,7 +218,10 @@ def case2_questions(d):
     assert top_lp.iloc[0] > top_lp.iloc[1]
     sol = ("Formulas: Location =LEFT(A2,3); EmpID =VALUE(MID(A2,4,4)); PlantID =VALUE(MID(A2,FIND(\"-\",A2)+1,2)); "
            "PayPeriod =RIGHT(A2,1); LocationPlantID =B2&\"-\"&D2 (e.g. USA-12).")
-    return [
+    mistakes = {
+        "E205": [(0, "MID returns text, and SUM ignores text: wrap the extraction in VALUE().")],
+    }
+    return with_mistakes([
         q("E201", "case2", ETL, ["text_functions", "countif"], 1.5, "After splitting EmployeeCode, how many employees work in Germany (GER)?",
           num(int((df.Loc == "GER").sum()), 0), sol),
         q("E202", "case2", ETL, ["text_functions", "countif"], 1.5, "How many employees are paid weekly (PayPeriod = W)?",
@@ -208,7 +236,7 @@ def case2_questions(d):
           num(int((df.LP == "USA-12").sum()), 0), sol),
         q("E207", "case2", ETL, ["text_functions", "lookup"], 1.5, "What is the PlantID of the employee with EmpID 1500?",
           num(int(df[df.Emp == 1500].Plant.iloc[0]), 0), sol + " Then filter or XLOOKUP on EmpID 1500."),
-    ]
+    ], mistakes)
 
 
 def case3_questions(d):
@@ -220,7 +248,11 @@ def case3_questions(d):
            "=MIN(FIND({0,1,2,3,4,5,6,7,8,9},A2&\"0123456789\")); Location =LEFT(A2,pos-1); "
            "EmpID =VALUE(MID(A2,pos,FIND(\"-\",A2)-pos)); PlantID: digits after the hyphen (test ISNUMBER(VALUE(MID(...))) for a second digit); "
            "PayPeriod: letters at the end, normalise Mo→M and We→W with IF. Flash Fill also works for the split.")
-    return [
+    mistakes = {
+        "E302": [(int((df.PayRaw == "M").sum()), "'Mo' also means monthly. Normalise M and Mo before counting.")],
+        "E305": [(0, "MID returns text, and SUM ignores text: wrap the extraction in VALUE().")],
+    }
+    return with_mistakes([
         q("E301", "case3", ETL, ["text_functions", "messy_data"], 2, "How many employees work in Canada (location code 'Canada')?",
           num(int((df.Loc == "Canada").sum()), 0), sol),
         q("E302", "case3", ETL, ["text_functions", "messy_data"], 2.5, "After normalising M/Mo to monthly, how many employees are paid monthly?",
@@ -233,7 +265,7 @@ def case3_questions(d):
           num(int(df.Emp.sum()), 0), sol),
         q("E306", "case3", ETL, ["text_functions", "countifs"], 3, "How many employees have an EmpID greater than 300 and work in Japan?",
           num(int(((df.Emp > 300) & (df.Loc == "Japan")).sum()), 0), sol),
-    ]
+    ], mistakes)
 
 
 # ---------------------------------------------------------------- ETL case 4
@@ -263,7 +295,15 @@ def case4_questions(d):
     sol_prep = ("PreparerID is only unique together with BusinessUnitID: =INDEX(PreparerInfo!A:A, MATCH(D2&\"|\"&C2, PreparerInfo!B:B&\"|\"&PreparerInfo!C:C, 0)) "
                 "as an array formula (or XLOOKUP with two conditions). The name is the text before '|'.")
     first = m.iloc[0]
-    return [
+    carolyn_units = prep[prep.PreparerName.astype(str).str.startswith("Carolyn Slater")]
+    by_id_only = int(je.PreparerID.isin(carolyn_units.PreparerID).sum())
+    mistakes = {
+        "E403": [(by_id_only, "PreparerID alone is not unique: IDs restart in every business unit. Match on PreparerID and BusinessUnitID together.")],
+        "E402": [(int(coa.AccountType.astype(str).str.strip().str.lower().eq("revenue").sum()),
+                  "That is the number of revenue accounts in the chart. Count the journal lines that post to them.")],
+        "E401": [(round(m[m.BusinessUnit == "HOTEL"].Amount.sum(), 2), "Use the Debit column only; Amount nets debits and credits.")],
+    }
+    return with_mistakes([
         q("E401", "journal", ETL, ["lookup", "sumifs"], 2.5, "What is the total of the Debit column for business unit HOTEL? Round to 2 decimals.",
           num(round(m[m.BusinessUnit == "HOTEL"].Debit.sum(), 2)), sol_lookup + ' Then =SUMIFS(Debit, BusinessUnit, "HOTEL").'),
         q("E402", "journal", ETL, ["lookup", "countifs"], 2.5, "How many journal entry line items post to accounts with AccountType Revenue?",
@@ -285,7 +325,7 @@ def case4_questions(d):
           num(round(m[m.AccountClass.astype(str).str.strip() == "Cash"].Amount.sum(), 2)), sol_lookup),
         q("E410", "journal", ETL, ["validation"], 1, "Do the journal entries balance? Give the sum of the Amount column (rounded to 2 decimals).",
           num(round(je.Amount.sum(), 2)), "=ROUND(SUM(J2:J790),2): debits are positive and credits negative, so a balanced ledger sums to 0."),
-    ]
+    ], mistakes)
 
 
 # ---------------------------------------------------------------- IntegrateCo
@@ -324,7 +364,17 @@ def payroll_questions(d):
     pct_jan = month.loc[1] / month.sum()
     sol_code = ("Job code = the three digits after the 2-digit year and the optional H/S department letter: "
                 "=MID(H2, IF(ISNUMBER(VALUE(MID(H2,3,1))), 3, 4), 3). Keep it as text so 001 stays 001.")
-    return [
+    ot_hint = "Include overtime: hours are Reg_Hrs + OT_Hrs (Hours + OT_Hours in 2016)."
+    mistakes = {
+        "I01": [(round(p15.Reg_Pay.sum(), 2), "Gross pay is Reg_Pay + OT_Pay; you only used regular pay.")],
+        "I03": [(round(p15[p15.Code == "005"].Reg_Hrs.sum(), 2), ot_hint)],
+        "I10": [(round(p16.Gross_Wages.sum(), 2), "Employee cost also includes SocSec_Medicare, FUTA, SUTA and Work_Comp.")],
+        "I13": [(round(m16[m16.Location == 1].Hours.sum(), 2), ot_hint)],
+        "I14": [(round(j1.Gross_Wages.sum() / j1.Hours.sum(), 2), ot_hint)],
+        "I17": [(len(p15), "That counts rows. Each employee has many rows (one per job and pay date): count distinct Emp_No.")],
+        "I06": [(round(p16.Gross_Wages.sum(), 2), "That is all 2016 wages. Keep only rows with a blank Employee_Number.")],
+    }
+    return with_mistakes([
         q("I01", "pay15", PAY, ["aggregate"], 1, "What was total gross pay (Reg_Pay + OT_Pay) in the first six months of 2015? Round to 2 decimals.",
           num(round(p15.Gross.sum(), 2)), "Import with Text to Columns (delimiter |), add Gross = K2+L2, =SUM."),
         q("I02", "pay16", PAY, ["aggregate"], 1, "What was total Gross_Wages in the first six months of 2016? Round to 2 decimals.",
@@ -367,7 +417,7 @@ def payroll_questions(d):
           num(p15.Emp_No.nunique(), 0), "=COUNTA(UNIQUE(C2:C4982))"),
         q("I18", "pay15", PAY, ["distinct"], 1, "How many separate payroll runs (distinct Payroll_ID) were there in 2015?",
           num(p15.Payroll_ID.nunique(), 0), "=COUNTA(UNIQUE(B2:B4982))"),
-    ]
+    ], mistakes)
 
 
 def build(files_dir):
