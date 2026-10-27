@@ -63,7 +63,7 @@ never sent to a server.
 
 ## AI feedback on written interpretations (optional)
 
-`worker/` holds a Cloudflare Worker that asks Claude to compare a student's written interpretation
+`worker/` holds a Cloudflare Worker that asks Google Gemini (free tier) to compare a student's written interpretation
 with the model answer and checklist. It deploys from GitHub Actions once the secrets are set and is
 switched on by `site/assets/config.js`. Setup and cost: [worker/README.md](worker/README.md).
 
