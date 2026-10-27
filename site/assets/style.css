@@ -208,3 +208,5 @@ ul.recon li span:last-child { color: var(--muted); }
 .feedback .hint { margin-top: 8px; padding: 8px 10px; border-radius: 6px; background: var(--warn-soft); color: var(--text); }
 .feedback .hint strong { color: var(--warn); }
 .dot.saved { background: var(--sql); }
+ul.recon li.warn .mark { color: var(--warn); }
+.upload label.btn { cursor: pointer; }

@@ -1,0 +1,1722 @@
+{
+ "REG01-P": {
+  "title": "Restaurant sales I (course data)",
+  "context": "Larry's Commissary (the restaurant case). Item-level sales were aggregated to daily totals and merged with the weather and game-day sheets; the models below were estimated on that merged data (312 days of 2018).",
+  "variables": {
+   "daily sales": "sum of netTotal over all menu items that day (USD)",
+   "sales 7 days ago": "daily sales one week earlier (USD)",
+   "sales 364 days ago": "daily sales on the same weekday last year (USD)",
+   "max temperature": "tmax, the day's maximum temperature (°F)",
+   "Game day": "1 = university football game that day, 0 = no game"
+  },
+  "kind": "prediction",
+  "equation": "Predicted daily sales = b0 + b1·[sales 7 days ago] + b2·[Game day]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 1424.0,
+    "p": 0.0
+   },
+   {
+    "term": "sales 7 days ago",
+    "est": 0.5556,
+    "p": 0.0
+   },
+   {
+    "term": "Game day",
+    "est": 789.9,
+    "p": 0.001
+   }
+  ],
+  "prompt": "Bob expects a game day, and sales 7 days ago were 3,500 USD. Predict daily sales (USD).",
+  "model": "1,424 + 0.5556 × 3,500 + 789.9 × 1 = 4,158.5 USD. Game day is a dummy, so it enters as 1.",
+  "points": [
+   "Uses every coefficient, including the intercept",
+   "Codes the dummy correctly as 1",
+   "Gets 4,158.5 USD and states the unit"
+  ]
+ },
+ "REG01-S": {
+  "title": "Restaurant sales I (course data)",
+  "context": "Larry's Commissary (the restaurant case). Item-level sales were aggregated to daily totals and merged with the weather and game-day sheets; the models below were estimated on that merged data (312 days of 2018).",
+  "variables": {
+   "daily sales": "sum of netTotal over all menu items that day (USD)",
+   "sales 7 days ago": "daily sales one week earlier (USD)",
+   "sales 364 days ago": "daily sales on the same weekday last year (USD)",
+   "max temperature": "tmax, the day's maximum temperature (°F)",
+   "Game day": "1 = university football game that day, 0 = no game"
+  },
+  "kind": "continuous",
+  "equation": "Predicted daily sales = a0 + a1·[max temperature]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 2725.0,
+    "p": 0.0
+   },
+   {
+    "term": "max temperature",
+    "est": 7.58,
+    "p": 0.0077
+   }
+  ],
+  "prompt": "Interpret the coefficient on max temperature, including its p-value.",
+  "model": "Each additional °F of max temperature is associated with a 7.58 USD higher daily sales on average. The p-value (0.008) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. The intercept (2,725) is the predicted daily sales when max temperature is 0. This is an association, not proof of causation.",
+  "points": [
+   "Gives size, direction and unit of the slope",
+   "Uses the p-value correctly (5% level)",
+   "Avoids a causal claim"
+  ]
+ },
+ "REG01-Q": {
+  "title": "Restaurant sales I (course data)",
+  "context": "Larry's Commissary (the restaurant case). Item-level sales were aggregated to daily totals and merged with the weather and game-day sheets; the models below were estimated on that merged data (312 days of 2018).",
+  "variables": {
+   "daily sales": "sum of netTotal over all menu items that day (USD)",
+   "sales 7 days ago": "daily sales one week earlier (USD)",
+   "sales 364 days ago": "daily sales on the same weekday last year (USD)",
+   "max temperature": "tmax, the day's maximum temperature (°F)",
+   "Game day": "1 = university football game that day, 0 = no game"
+  },
+  "kind": "quadratic",
+  "equation": "Predicted daily sales = c0 + c1·[max temperature] + c2·[max temperature]²",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 934.8,
+    "p": 0.1979
+   },
+   {
+    "term": "max temperature",
+    "est": 64.46,
+    "p": 0.0041
+   },
+   {
+    "term": "max temperature²",
+    "est": -0.4107,
+    "p": 0.0105
+   }
+  ],
+  "prompt": "At what value of max temperature (°F) is predicted daily sales at its maximum? Round to 2 decimals.",
+  "model": "The squared term (-0.4107) is negative, so the relationship has an inverted U (concave): the effect of one more unit of max temperature gets smaller as max temperature increases. The maximum is where the slope c1 + 2·c2·max temperature equals zero: max temperature = −c1 / (2·c2) = −64.46 / (2 × -0.4107) = 78.48 °F.",
+  "points": [
+   "Recognises the sign of the squared term",
+   "Uses −c1 / (2·c2)",
+   "Gets 78.48 °F"
+  ]
+ },
+ "REG01-I": {
+  "title": "Restaurant sales I (course data)",
+  "context": "Larry's Commissary (the restaurant case). Item-level sales were aggregated to daily totals and merged with the weather and game-day sheets; the models below were estimated on that merged data (312 days of 2018).",
+  "variables": {
+   "daily sales": "sum of netTotal over all menu items that day (USD)",
+   "sales 7 days ago": "daily sales one week earlier (USD)",
+   "sales 364 days ago": "daily sales on the same weekday last year (USD)",
+   "max temperature": "tmax, the day's maximum temperature (°F)",
+   "Game day": "1 = university football game that day, 0 = no game"
+  },
+  "kind": "interaction",
+  "equation": "Predicted daily sales = d0 + d1·[sales 364 days ago] + d2·[Game day] + d3·([sales 364 days ago]×[Game day])",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 1044.0,
+    "p": 0.0
+   },
+   {
+    "term": "sales 364 days ago",
+    "est": 0.6196,
+    "p": 0.0
+   },
+   {
+    "term": "Game day",
+    "est": 387.0,
+    "p": 0.6347
+   },
+   {
+    "term": "sales 364 days ago×Game day",
+    "est": 0.01074,
+    "p": 0.9457
+   }
+  ],
+  "prompt": "Interpret all four coefficients in context, including their p-values. What does this tell Bob?",
+  "model": "d0 (1,044): predicted sales on a non-game day when sales 364 days ago is 0 (an extrapolation). d1 (0.6196): on non-game days, one more USD of sales 364 days ago goes with 0.6196 USD higher sales. The p-value (< 0.001) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. d2 (387): the game-day difference when sales 364 days ago is 0. The p-value (0.635) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). d3 (0.0107): how the slope of sales 364 days ago changes on game days (game-day slope = 0.6303). The p-value (0.946) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). With the interaction included, the separate game-day effect is hard to pin down because game days are rare (13 days).",
+  "points": [
+   "Intercept = non-game day at 0, an extrapolation",
+   "d1 = slope on non-game days",
+   "d2 = game-day shift at 0",
+   "d3 = change in slope on game days",
+   "Uses all p-values; notes few game days"
+  ]
+ },
+ "REG02-P": {
+  "title": "Restaurant sales II (course data)",
+  "context": "Larry's Commissary (the restaurant case). Item-level sales were aggregated to daily totals and merged with the weather and game-day sheets; the models below were estimated on that merged data (312 days of 2018).",
+  "variables": {
+   "daily sales": "sum of netTotal over all menu items that day (USD)",
+   "sales 7 days ago": "daily sales one week earlier (USD)",
+   "sales 364 days ago": "daily sales on the same weekday last year (USD)",
+   "max temperature": "tmax, the day's maximum temperature (°F)",
+   "Game day": "1 = university football game that day, 0 = no game"
+  },
+  "kind": "prediction",
+  "equation": "Predicted daily sales = b0 + b1·[sales 364 days ago] + b2·[Game day]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 1042.0,
+    "p": 0.0
+   },
+   {
+    "term": "sales 364 days ago",
+    "est": 0.6202,
+    "p": 0.0
+   },
+   {
+    "term": "Game day",
+    "est": 440.6,
+    "p": 0.0379
+   }
+  ],
+  "prompt": "Bob expects a game day, and sales 364 days ago were 3,000 USD. Predict daily sales (USD).",
+  "model": "1,042 + 0.6202 × 3,000 + 440.6 × 1 = 3,343.2 USD. Game day is a dummy, so it enters as 1.",
+  "points": [
+   "Uses every coefficient, including the intercept",
+   "Codes the dummy correctly as 1",
+   "Gets 3,343.2 USD and states the unit"
+  ]
+ },
+ "REG02-S": {
+  "title": "Restaurant sales II (course data)",
+  "context": "Larry's Commissary (the restaurant case). Item-level sales were aggregated to daily totals and merged with the weather and game-day sheets; the models below were estimated on that merged data (312 days of 2018).",
+  "variables": {
+   "daily sales": "sum of netTotal over all menu items that day (USD)",
+   "sales 7 days ago": "daily sales one week earlier (USD)",
+   "sales 364 days ago": "daily sales on the same weekday last year (USD)",
+   "max temperature": "tmax, the day's maximum temperature (°F)",
+   "Game day": "1 = university football game that day, 0 = no game"
+  },
+  "kind": "dummy",
+  "equation": "Predicted daily sales = a0 + a1·[Game day]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 3191.0,
+    "p": 0.0
+   },
+   {
+    "term": "Game day",
+    "est": 1436.0,
+    "p": 0.0
+   }
+  ],
+  "prompt": "Interpret both coefficients of this model.",
+  "model": "The intercept (3,191) is the average daily sales for the reference group, days without a game. The coefficient a1 means game days have on average 1,436 USD higher daily sales than days without a game (predicted 4,627 vs 3,191). The p-value (< 0.001) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero.",
+  "points": [
+   "Intercept = mean of the reference group",
+   "Dummy = difference between the groups, with direction and unit",
+   "Uses the p-value correctly"
+  ]
+ },
+ "REG02-Q": {
+  "title": "Restaurant sales II (course data)",
+  "context": "Larry's Commissary (the restaurant case). Item-level sales were aggregated to daily totals and merged with the weather and game-day sheets; the models below were estimated on that merged data (312 days of 2018).",
+  "variables": {
+   "daily sales": "sum of netTotal over all menu items that day (USD)",
+   "sales 7 days ago": "daily sales one week earlier (USD)",
+   "sales 364 days ago": "daily sales on the same weekday last year (USD)",
+   "max temperature": "tmax, the day's maximum temperature (°F)",
+   "Game day": "1 = university football game that day, 0 = no game"
+  },
+  "kind": "quadratic",
+  "equation": "Predicted daily sales = c0 + c1·[sales 7 days ago] + c2·[sales 7 days ago]²",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 878.8,
+    "p": 0.0008
+   },
+   {
+    "term": "sales 7 days ago",
+    "est": 0.9081,
+    "p": 0.0
+   },
+   {
+    "term": "sales 7 days ago²",
+    "est": -4.813e-05,
+    "p": 0.0275
+   }
+  ],
+  "prompt": "What do you learn from the coefficient and p-value of the sales 7 days ago² term?",
+  "model": "The squared term (0) is negative, so the relationship has an inverted U (concave): the effect of one more unit of sales 7 days ago gets smaller as sales 7 days ago increases. The p-value (0.028) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. So the data support a curved rather than a straight-line relationship.",
+  "points": [
+   "Interprets the sign as curvature",
+   "Uses the p-value of the squared term",
+   "Concludes whether the relationship is non-linear"
+  ]
+ },
+ "REG02-I": {
+  "title": "Restaurant sales II (course data)",
+  "context": "Larry's Commissary (the restaurant case). Item-level sales were aggregated to daily totals and merged with the weather and game-day sheets; the models below were estimated on that merged data (312 days of 2018).",
+  "variables": {
+   "daily sales": "sum of netTotal over all menu items that day (USD)",
+   "sales 7 days ago": "daily sales one week earlier (USD)",
+   "sales 364 days ago": "daily sales on the same weekday last year (USD)",
+   "max temperature": "tmax, the day's maximum temperature (°F)",
+   "Game day": "1 = university football game that day, 0 = no game"
+  },
+  "kind": "interaction",
+  "equation": "Predicted daily sales = d0 + d1·[max temperature] + d2·[Game day] + d3·([max temperature]×[Game day])",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 2710.0,
+    "p": 0.0
+   },
+   {
+    "term": "max temperature",
+    "est": 6.943,
+    "p": 0.0124
+   },
+   {
+    "term": "Game day",
+    "est": 437.5,
+    "p": 0.7234
+   },
+   {
+    "term": "max temperature×Game day",
+    "est": 13.81,
+    "p": 0.4136
+   }
+  ],
+  "prompt": "Interpret all four coefficients in context, including their p-values. What does this tell Bob?",
+  "model": "d0 (2,710): predicted sales on a non-game day when max temperature is 0 (an extrapolation). d1 (6.943): on non-game days, one more °F of max temperature goes with 6.943 USD higher sales. The p-value (0.012) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. d2 (437.5): the game-day difference when max temperature is 0. The p-value (0.723) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). d3 (13.81): how the slope of max temperature changes on game days (game-day slope = 20.753). The p-value (0.414) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). With the interaction included, the separate game-day effect is hard to pin down because game days are rare (13 days).",
+  "points": [
+   "Intercept = non-game day at 0, an extrapolation",
+   "d1 = slope on non-game days",
+   "d2 = game-day shift at 0",
+   "d3 = change in slope on game days",
+   "Uses all p-values; notes few game days"
+  ]
+ },
+ "REG03-P": {
+  "title": "Hotel conference revenue",
+  "context": "A hotel and conference centre (like the one in ETL Case 4) studies daily food-service revenue.",
+  "variables": {
+   "daily revenue": "food-service revenue (thousand DKK)",
+   "occupancy": "share of rooms occupied (0–100 %)",
+   "Conference day": "1 = a conference is held, 0 = no conference"
+  },
+  "kind": "prediction",
+  "equation": "Predicted daily revenue = b0 + b1·[occupancy] + b2·[Conference day]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 12.5,
+    "p": 0.004
+   },
+   {
+    "term": "occupancy",
+    "est": 0.42,
+    "p": 0.001
+   },
+   {
+    "term": "Conference day",
+    "est": 18.0,
+    "p": 0.002
+   }
+  ],
+  "prompt": "Predict daily revenue (thousand DKK) when occupancy = 70 percentage points for conference days.",
+  "model": "Insert the values: 12.5 + 0.42 × 70 + 18 × 1 = 59.9 thousand DKK. Conference day is a dummy, so it enters as 1 (conference days).",
+  "points": [
+   "Uses every coefficient, including the intercept",
+   "Codes the dummy correctly as 1",
+   "Gets 59.9 thousand DKK and states the unit"
+  ]
+ },
+ "REG03-S": {
+  "title": "Hotel conference revenue",
+  "context": "A hotel and conference centre (like the one in ETL Case 4) studies daily food-service revenue.",
+  "variables": {
+   "daily revenue": "food-service revenue (thousand DKK)",
+   "occupancy": "share of rooms occupied (0–100 %)",
+   "Conference day": "1 = a conference is held, 0 = no conference"
+  },
+  "kind": "continuous",
+  "equation": "Predicted daily revenue = a0 + a1·[occupancy]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 15.2,
+    "p": 0.01
+   },
+   {
+    "term": "occupancy",
+    "est": 0.38,
+    "p": 0.003
+   }
+  ],
+  "prompt": "Interpret the coefficient on occupancy, including its p-value.",
+  "model": "Each additional percentage point of occupancy is associated with a 0.38 thousand DKK higher daily revenue on average. The p-value (0.003) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. The intercept (15.2) is the predicted daily revenue when occupancy is 0; 0 lies outside the range of the data (20–100 percentage points), so it is an extrapolation with little practical meaning. This is an association, not proof of causation.",
+  "points": [
+   "Gives size, direction and unit of the slope",
+   "Uses the p-value correctly (5% level)",
+   "Avoids a causal claim"
+  ]
+ },
+ "REG03-Q": {
+  "title": "Hotel conference revenue",
+  "context": "A hotel and conference centre (like the one in ETL Case 4) studies daily food-service revenue.",
+  "variables": {
+   "daily revenue": "food-service revenue (thousand DKK)",
+   "occupancy": "share of rooms occupied (0–100 %)",
+   "Conference day": "1 = a conference is held, 0 = no conference"
+  },
+  "kind": "quadratic",
+  "equation": "Predicted daily revenue = c0 + c1·[occupancy] + c2·[occupancy]²",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": -4.0,
+    "p": 0.42
+   },
+   {
+    "term": "occupancy",
+    "est": 1.3,
+    "p": 0.001
+   },
+   {
+    "term": "occupancy²",
+    "est": -0.0075,
+    "p": 0.006
+   }
+  ],
+  "prompt": "At what value of occupancy (percentage points) is predicted daily revenue at its maximum? Round to 2 decimals.",
+  "model": "The squared term (-0.0075) is negative, so the relationship has an inverted U (concave): the effect of one more unit of occupancy gets smaller as occupancy increases. The maximum is where the slope c1 + 2·c2·occupancy equals zero: occupancy = −c1 / (2·c2) = −1.3 / (2 × -0.0075) = 86.67 percentage points.",
+  "points": [
+   "Recognises the sign of the squared term",
+   "Uses −c1 / (2·c2)",
+   "Gets 86.67 percentage points"
+  ]
+ },
+ "REG03-I": {
+  "title": "Hotel conference revenue",
+  "context": "A hotel and conference centre (like the one in ETL Case 4) studies daily food-service revenue.",
+  "variables": {
+   "daily revenue": "food-service revenue (thousand DKK)",
+   "occupancy": "share of rooms occupied (0–100 %)",
+   "Conference day": "1 = a conference is held, 0 = no conference"
+  },
+  "kind": "interaction",
+  "equation": "Predicted daily revenue = d0 + d1·[occupancy] + d2·[Conference day] + d3·([occupancy]×[Conference day])",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 11.0,
+    "p": 0.02
+   },
+   {
+    "term": "occupancy",
+    "est": 0.4,
+    "p": 0.001
+   },
+   {
+    "term": "Conference day",
+    "est": 9.5,
+    "p": 0.18
+   },
+   {
+    "term": "occupancy×Conference day",
+    "est": 0.15,
+    "p": 0.041
+   }
+  ],
+  "prompt": "Interpret all four coefficients in context, including their p-values.",
+  "model": "d0 (11): predicted daily revenue for days without a conference when occupancy = 0. d1 (0.4): for days without a conference, each additional unit of occupancy (percentage points) is associated with 0.4 thousand DKK change in daily revenue. The p-value (0.001) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. d2 (9.5): the difference between conference days and days without a conference when occupancy = 0. The p-value (0.180) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). d3 (0.15): how much the slope of occupancy differs for conference days; their slope is d1 + d3 = 0.55 thousand DKK per unit. The p-value (0.041) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero.",
+  "points": [
+   "Intercept refers to the reference group at 0",
+   "d1 is the slope for the reference group only",
+   "d2 is the group difference at 0",
+   "d3 is the change in slope; slope for the other group = d1 + d3",
+   "Uses p-values for d1, d2, d3"
+  ]
+ },
+ "REG04-P": {
+  "title": "IntegrateCo overtime",
+  "context": "IntegrateCo examines weekly overtime pay per employee after the system change.",
+  "variables": {
+   "overtime pay": "overtime pay per employee and week (USD)",
+   "regular hours": "regular hours worked that week (0–40)",
+   "Installation job": "1 = job code 005 Installation, 0 = other job codes"
+  },
+  "kind": "prediction",
+  "equation": "Predicted overtime pay = b0 + b1·[regular hours] + b2·[Installation job]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": -35.0,
+    "p": 0.06
+   },
+   {
+    "term": "regular hours",
+    "est": 3.1,
+    "p": 0.001
+   },
+   {
+    "term": "Installation job",
+    "est": 48.0,
+    "p": 0.012
+   }
+  ],
+  "prompt": "Predict overtime pay (USD per week) when regular hours = 38 hours for installation employees.",
+  "model": "Insert the values: -35 + 3.1 × 38 + 48 × 1 = 130.8 USD per week. Installation job is a dummy, so it enters as 1 (installation employees).",
+  "points": [
+   "Uses every coefficient, including the intercept",
+   "Codes the dummy correctly as 1",
+   "Gets 130.8 USD per week and states the unit"
+  ]
+ },
+ "REG04-S": {
+  "title": "IntegrateCo overtime",
+  "context": "IntegrateCo examines weekly overtime pay per employee after the system change.",
+  "variables": {
+   "overtime pay": "overtime pay per employee and week (USD)",
+   "regular hours": "regular hours worked that week (0–40)",
+   "Installation job": "1 = job code 005 Installation, 0 = other job codes"
+  },
+  "kind": "dummy",
+  "equation": "Predicted overtime pay = a0 + a1·[Installation job]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 61.0,
+    "p": 0.001
+   },
+   {
+    "term": "Installation job",
+    "est": 44.5,
+    "p": 0.027
+   }
+  ],
+  "prompt": "Interpret both coefficients of this model.",
+  "model": "The intercept (61) is the average overtime pay for the reference group, other employees. The coefficient a1 means installation employees have on average 44.5 USD per week higher overtime pay than other employees (predicted 105.5 vs 61). The p-value (0.027) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero.",
+  "points": [
+   "Intercept = mean of the reference group",
+   "Dummy = difference between the groups, with direction and unit",
+   "Uses the p-value correctly"
+  ]
+ },
+ "REG04-Q": {
+  "title": "IntegrateCo overtime",
+  "context": "IntegrateCo examines weekly overtime pay per employee after the system change.",
+  "variables": {
+   "overtime pay": "overtime pay per employee and week (USD)",
+   "regular hours": "regular hours worked that week (0–40)",
+   "Installation job": "1 = job code 005 Installation, 0 = other job codes"
+  },
+  "kind": "quadratic",
+  "equation": "Predicted overtime pay = c0 + c1·[regular hours] + c2·[regular hours]²",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 20.0,
+    "p": 0.3
+   },
+   {
+    "term": "regular hours",
+    "est": -2.4,
+    "p": 0.04
+   },
+   {
+    "term": "regular hours²",
+    "est": 0.11,
+    "p": 0.003
+   }
+  ],
+  "prompt": "What do you learn from the coefficient and p-value of the regular hours² term?",
+  "model": "The squared term (0.11) is positive, so the relationship has a U shape (convex): the effect of one more unit of regular hours gets larger as regular hours increases. The p-value (0.003) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. So the data support a curved rather than a straight-line relationship.",
+  "points": [
+   "Interprets the sign as curvature",
+   "Uses the p-value of the squared term",
+   "Concludes whether the relationship is non-linear"
+  ]
+ },
+ "REG04-I": {
+  "title": "IntegrateCo overtime",
+  "context": "IntegrateCo examines weekly overtime pay per employee after the system change.",
+  "variables": {
+   "overtime pay": "overtime pay per employee and week (USD)",
+   "regular hours": "regular hours worked that week (0–40)",
+   "Installation job": "1 = job code 005 Installation, 0 = other job codes"
+  },
+  "kind": "interaction",
+  "equation": "Predicted overtime pay = d0 + d1·[regular hours] + d2·[Installation job] + d3·([regular hours]×[Installation job])",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": -30.0,
+    "p": 0.09
+   },
+   {
+    "term": "regular hours",
+    "est": 2.8,
+    "p": 0.002
+   },
+   {
+    "term": "Installation job",
+    "est": 12.0,
+    "p": 0.55
+   },
+   {
+    "term": "regular hours×Installation job",
+    "est": 1.1,
+    "p": 0.21
+   }
+  ],
+  "prompt": "Interpret all four coefficients in context, including their p-values.",
+  "model": "d0 (-30): predicted overtime pay for other employees when regular hours = 0. d1 (2.8): for other employees, each additional unit of regular hours (hours) is associated with 2.8 USD per week change in overtime pay. The p-value (0.002) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. d2 (12): the difference between installation employees and other employees when regular hours = 0. The p-value (0.550) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). d3 (1.1): how much the slope of regular hours differs for installation employees; their slope is d1 + d3 = 3.9 USD per week per unit. The p-value (0.210) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance).",
+  "points": [
+   "Intercept refers to the reference group at 0",
+   "d1 is the slope for the reference group only",
+   "d2 is the group difference at 0",
+   "d3 is the change in slope; slope for the other group = d1 + d3",
+   "Uses p-values for d1, d2, d3"
+  ]
+ },
+ "REG05-P": {
+  "title": "P-card monthly spend",
+  "context": "OSU internal audit models the monthly P-card spend of a department.",
+  "variables": {
+   "monthly spend": "total P-card spend in the month (thousand USD)",
+   "cardholders": "number of active cardholders",
+   "Fiscal year-end month": "1 = June, the last month of OSU's fiscal year, 0 = other months"
+  },
+  "kind": "prediction",
+  "equation": "Predicted monthly spend = b0 + b1·[cardholders] + b2·[Fiscal year-end month]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 3.2,
+    "p": 0.11
+   },
+   {
+    "term": "cardholders",
+    "est": 1.85,
+    "p": 0.001
+   },
+   {
+    "term": "Fiscal year-end month",
+    "est": 9.4,
+    "p": 0.004
+   }
+  ],
+  "prompt": "Predict monthly spend (thousand USD) when cardholders = 12 cardholders for June (fiscal year-end).",
+  "model": "Insert the values: 3.2 + 1.85 × 12 + 9.4 × 1 = 34.8 thousand USD. Fiscal year-end month is a dummy, so it enters as 1 (June (fiscal year-end)).",
+  "points": [
+   "Uses every coefficient, including the intercept",
+   "Codes the dummy correctly as 1",
+   "Gets 34.8 thousand USD and states the unit"
+  ]
+ },
+ "REG05-S": {
+  "title": "P-card monthly spend",
+  "context": "OSU internal audit models the monthly P-card spend of a department.",
+  "variables": {
+   "monthly spend": "total P-card spend in the month (thousand USD)",
+   "cardholders": "number of active cardholders",
+   "Fiscal year-end month": "1 = June, the last month of OSU's fiscal year, 0 = other months"
+  },
+  "kind": "continuous",
+  "equation": "Predicted monthly spend = a0 + a1·[cardholders]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 4.1,
+    "p": 0.05
+   },
+   {
+    "term": "cardholders",
+    "est": 1.9,
+    "p": 0.001
+   }
+  ],
+  "prompt": "Interpret the coefficient on cardholders, including its p-value.",
+  "model": "Each additional cardholder of cardholders is associated with a 1.9 thousand USD higher monthly spend on average. The p-value (0.001) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. The intercept (4.1) is the predicted monthly spend when cardholders is 0; 0 lies outside the range of the data (1–40 cardholders), so it is an extrapolation with little practical meaning. This is an association, not proof of causation.",
+  "points": [
+   "Gives size, direction and unit of the slope",
+   "Uses the p-value correctly (5% level)",
+   "Avoids a causal claim"
+  ]
+ },
+ "REG05-Q": {
+  "title": "P-card monthly spend",
+  "context": "OSU internal audit models the monthly P-card spend of a department.",
+  "variables": {
+   "monthly spend": "total P-card spend in the month (thousand USD)",
+   "cardholders": "number of active cardholders",
+   "Fiscal year-end month": "1 = June, the last month of OSU's fiscal year, 0 = other months"
+  },
+  "kind": "quadratic",
+  "equation": "Predicted monthly spend = c0 + c1·[cardholders] + c2·[cardholders]²",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 1.5,
+    "p": 0.52
+   },
+   {
+    "term": "cardholders",
+    "est": 2.6,
+    "p": 0.001
+   },
+   {
+    "term": "cardholders²",
+    "est": -0.021,
+    "p": 0.38
+   }
+  ],
+  "prompt": "What do you learn from the coefficient and p-value of the cardholders² term?",
+  "model": "The squared term (-0.021) is negative, so the relationship has an inverted U (concave): the effect of one more unit of cardholders gets smaller as cardholders increases. The p-value (0.380) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). So the data do not clearly support a curve; a straight line may be adequate.",
+  "points": [
+   "Interprets the sign as curvature",
+   "Uses the p-value of the squared term",
+   "Concludes whether the relationship is non-linear"
+  ]
+ },
+ "REG05-I": {
+  "title": "P-card monthly spend",
+  "context": "OSU internal audit models the monthly P-card spend of a department.",
+  "variables": {
+   "monthly spend": "total P-card spend in the month (thousand USD)",
+   "cardholders": "number of active cardholders",
+   "Fiscal year-end month": "1 = June, the last month of OSU's fiscal year, 0 = other months"
+  },
+  "kind": "interaction",
+  "equation": "Predicted monthly spend = d0 + d1·[cardholders] + d2·[Fiscal year-end month] + d3·([cardholders]×[Fiscal year-end month])",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 3.0,
+    "p": 0.15
+   },
+   {
+    "term": "cardholders",
+    "est": 1.8,
+    "p": 0.001
+   },
+   {
+    "term": "Fiscal year-end month",
+    "est": 2.5,
+    "p": 0.47
+   },
+   {
+    "term": "cardholders×Fiscal year-end month",
+    "est": 0.42,
+    "p": 0.012
+   }
+  ],
+  "prompt": "Interpret all four coefficients in context, including their p-values.",
+  "model": "d0 (3): predicted monthly spend for other months when cardholders = 0. d1 (1.8): for other months, each additional unit of cardholders (cardholders) is associated with 1.8 thousand USD change in monthly spend. The p-value (0.001) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. d2 (2.5): the difference between June (fiscal year-end) and other months when cardholders = 0. The p-value (0.470) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). d3 (0.42): how much the slope of cardholders differs for June (fiscal year-end); their slope is d1 + d3 = 2.22 thousand USD per unit. The p-value (0.012) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero.",
+  "points": [
+   "Intercept refers to the reference group at 0",
+   "d1 is the slope for the reference group only",
+   "d2 is the group difference at 0",
+   "d3 is the change in slope; slope for the other group = d1 + d3",
+   "Uses p-values for d1, d2, d3"
+  ]
+ },
+ "REG06-P": {
+  "title": "Film shoots and weather",
+  "context": "New York's film office relates weekly shooting permits to the weather.",
+  "variables": {
+   "weekly permits": "number of shooting permits starting that week",
+   "temperature": "average weekly temperature (°C)",
+   "Holiday week": "1 = week contains a public holiday, 0 = otherwise"
+  },
+  "kind": "prediction",
+  "equation": "Predicted weekly permits = b0 + b1·[temperature] + b2·[Holiday week]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 118.0,
+    "p": 0.001
+   },
+   {
+    "term": "temperature",
+    "est": 2.6,
+    "p": 0.002
+   },
+   {
+    "term": "Holiday week",
+    "est": -21.0,
+    "p": 0.031
+   }
+  ],
+  "prompt": "Predict weekly permits (permits) when temperature = 18 °C for regular weeks.",
+  "model": "Insert the values: 118 + 2.6 × 18 + -21 × 0 = 164.8 permits. Holiday week is a dummy, so it enters as 0 (regular weeks).",
+  "points": [
+   "Uses every coefficient, including the intercept",
+   "Codes the dummy correctly as 0",
+   "Gets 164.8 permits and states the unit"
+  ]
+ },
+ "REG06-S": {
+  "title": "Film shoots and weather",
+  "context": "New York's film office relates weekly shooting permits to the weather.",
+  "variables": {
+   "weekly permits": "number of shooting permits starting that week",
+   "temperature": "average weekly temperature (°C)",
+   "Holiday week": "1 = week contains a public holiday, 0 = otherwise"
+  },
+  "kind": "dummy",
+  "equation": "Predicted weekly permits = a0 + a1·[Holiday week]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 152.0,
+    "p": 0.001
+   },
+   {
+    "term": "Holiday week",
+    "est": -24.0,
+    "p": 0.068
+   }
+  ],
+  "prompt": "Interpret both coefficients of this model.",
+  "model": "The intercept (152) is the average weekly permits for the reference group, regular weeks. The coefficient a1 means holiday weeks have on average 24 permits lower weekly permits than regular weeks (predicted 128 vs 152). The p-value (0.068) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance).",
+  "points": [
+   "Intercept = mean of the reference group",
+   "Dummy = difference between the groups, with direction and unit",
+   "Uses the p-value correctly"
+  ]
+ },
+ "REG06-Q": {
+  "title": "Film shoots and weather",
+  "context": "New York's film office relates weekly shooting permits to the weather.",
+  "variables": {
+   "weekly permits": "number of shooting permits starting that week",
+   "temperature": "average weekly temperature (°C)",
+   "Holiday week": "1 = week contains a public holiday, 0 = otherwise"
+  },
+  "kind": "quadratic",
+  "equation": "Predicted weekly permits = c0 + c1·[temperature] + c2·[temperature]²",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 105.0,
+    "p": 0.001
+   },
+   {
+    "term": "temperature",
+    "est": 6.4,
+    "p": 0.001
+   },
+   {
+    "term": "temperature²",
+    "est": -0.14,
+    "p": 0.004
+   }
+  ],
+  "prompt": "At what value of temperature (°C) is predicted weekly permits at its maximum? Round to 2 decimals.",
+  "model": "The squared term (-0.14) is negative, so the relationship has an inverted U (concave): the effect of one more unit of temperature gets smaller as temperature increases. The maximum is where the slope c1 + 2·c2·temperature equals zero: temperature = −c1 / (2·c2) = −6.4 / (2 × -0.14) = 22.86 °C.",
+  "points": [
+   "Recognises the sign of the squared term",
+   "Uses −c1 / (2·c2)",
+   "Gets 22.86 °C"
+  ]
+ },
+ "REG06-I": {
+  "title": "Film shoots and weather",
+  "context": "New York's film office relates weekly shooting permits to the weather.",
+  "variables": {
+   "weekly permits": "number of shooting permits starting that week",
+   "temperature": "average weekly temperature (°C)",
+   "Holiday week": "1 = week contains a public holiday, 0 = otherwise"
+  },
+  "kind": "interaction",
+  "equation": "Predicted weekly permits = d0 + d1·[temperature] + d2·[Holiday week] + d3·([temperature]×[Holiday week])",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 120.0,
+    "p": 0.001
+   },
+   {
+    "term": "temperature",
+    "est": 2.5,
+    "p": 0.003
+   },
+   {
+    "term": "Holiday week",
+    "est": -12.0,
+    "p": 0.29
+   },
+   {
+    "term": "temperature×Holiday week",
+    "est": -0.9,
+    "p": 0.44
+   }
+  ],
+  "prompt": "Interpret all four coefficients in context, including their p-values.",
+  "model": "d0 (120): predicted weekly permits for regular weeks when temperature = 0. d1 (2.5): for regular weeks, each additional unit of temperature (°C) is associated with 2.5 permits change in weekly permits. The p-value (0.003) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. d2 (-12): the difference between holiday weeks and regular weeks when temperature = 0. The p-value (0.290) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). d3 (-0.9): how much the slope of temperature differs for holiday weeks; their slope is d1 + d3 = 1.6 permits per unit. The p-value (0.440) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance).",
+  "points": [
+   "Intercept refers to the reference group at 0",
+   "d1 is the slope for the reference group only",
+   "d2 is the group difference at 0",
+   "d3 is the change in slope; slope for the other group = d1 + d3",
+   "Uses p-values for d1, d2, d3"
+  ]
+ },
+ "REG07-P": {
+  "title": "Audit fees",
+  "context": "An audit firm explains audit fees with client size.",
+  "variables": {
+   "audit fee": "audit fee (thousand EUR)",
+   "total assets": "client's total assets (million EUR)",
+   "Listed client": "1 = shares listed on a stock exchange, 0 = unlisted"
+  },
+  "kind": "prediction",
+  "equation": "Predicted audit fee = b0 + b1·[total assets] + b2·[Listed client]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 22.0,
+    "p": 0.001
+   },
+   {
+    "term": "total assets",
+    "est": 0.31,
+    "p": 0.001
+   },
+   {
+    "term": "Listed client",
+    "est": 35.0,
+    "p": 0.008
+   }
+  ],
+  "prompt": "Predict audit fee (thousand EUR) when total assets = 120 million EUR for listed clients.",
+  "model": "Insert the values: 22 + 0.31 × 120 + 35 × 1 = 94.2 thousand EUR. Listed client is a dummy, so it enters as 1 (listed clients).",
+  "points": [
+   "Uses every coefficient, including the intercept",
+   "Codes the dummy correctly as 1",
+   "Gets 94.2 thousand EUR and states the unit"
+  ]
+ },
+ "REG07-S": {
+  "title": "Audit fees",
+  "context": "An audit firm explains audit fees with client size.",
+  "variables": {
+   "audit fee": "audit fee (thousand EUR)",
+   "total assets": "client's total assets (million EUR)",
+   "Listed client": "1 = shares listed on a stock exchange, 0 = unlisted"
+  },
+  "kind": "continuous",
+  "equation": "Predicted audit fee = a0 + a1·[total assets]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 30.5,
+    "p": 0.001
+   },
+   {
+    "term": "total assets",
+    "est": 0.29,
+    "p": 0.001
+   }
+  ],
+  "prompt": "Interpret the coefficient on total assets, including its p-value.",
+  "model": "Each additional million EUR of total assets is associated with a 0.29 thousand EUR higher audit fee on average. The p-value (0.001) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. The intercept (30.5) is the predicted audit fee when total assets is 0; 0 lies outside the range of the data (5–500 million EUR), so it is an extrapolation with little practical meaning. This is an association, not proof of causation.",
+  "points": [
+   "Gives size, direction and unit of the slope",
+   "Uses the p-value correctly (5% level)",
+   "Avoids a causal claim"
+  ]
+ },
+ "REG07-Q": {
+  "title": "Audit fees",
+  "context": "An audit firm explains audit fees with client size.",
+  "variables": {
+   "audit fee": "audit fee (thousand EUR)",
+   "total assets": "client's total assets (million EUR)",
+   "Listed client": "1 = shares listed on a stock exchange, 0 = unlisted"
+  },
+  "kind": "quadratic",
+  "equation": "Predicted audit fee = c0 + c1·[total assets] + c2·[total assets]²",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 15.0,
+    "p": 0.02
+   },
+   {
+    "term": "total assets",
+    "est": 0.52,
+    "p": 0.001
+   },
+   {
+    "term": "total assets²",
+    "est": -0.0004,
+    "p": 0.009
+   }
+  ],
+  "prompt": "At what value of total assets (million EUR) is predicted audit fee at its maximum? Round to 2 decimals.",
+  "model": "The squared term (-0.0004) is negative, so the relationship has an inverted U (concave): the effect of one more unit of total assets gets smaller as total assets increases. The maximum is where the slope c1 + 2·c2·total assets equals zero: total assets = −c1 / (2·c2) = −0.52 / (2 × -0.0004) = 650 million EUR. Note this lies outside the data range (5–500), so treat it with caution.",
+  "points": [
+   "Recognises the sign of the squared term",
+   "Uses −c1 / (2·c2)",
+   "Gets 650 million EUR"
+  ]
+ },
+ "REG07-I": {
+  "title": "Audit fees",
+  "context": "An audit firm explains audit fees with client size.",
+  "variables": {
+   "audit fee": "audit fee (thousand EUR)",
+   "total assets": "client's total assets (million EUR)",
+   "Listed client": "1 = shares listed on a stock exchange, 0 = unlisted"
+  },
+  "kind": "interaction",
+  "equation": "Predicted audit fee = d0 + d1·[total assets] + d2·[Listed client] + d3·([total assets]×[Listed client])",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 25.0,
+    "p": 0.001
+   },
+   {
+    "term": "total assets",
+    "est": 0.27,
+    "p": 0.001
+   },
+   {
+    "term": "Listed client",
+    "est": 12.0,
+    "p": 0.32
+   },
+   {
+    "term": "total assets×Listed client",
+    "est": 0.08,
+    "p": 0.027
+   }
+  ],
+  "prompt": "Interpret all four coefficients in context, including their p-values.",
+  "model": "d0 (25): predicted audit fee for unlisted clients when total assets = 0. d1 (0.27): for unlisted clients, each additional unit of total assets (million EUR) is associated with 0.27 thousand EUR change in audit fee. The p-value (0.001) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. d2 (12): the difference between listed clients and unlisted clients when total assets = 0. The p-value (0.320) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). d3 (0.08): how much the slope of total assets differs for listed clients; their slope is d1 + d3 = 0.35 thousand EUR per unit. The p-value (0.027) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero.",
+  "points": [
+   "Intercept refers to the reference group at 0",
+   "d1 is the slope for the reference group only",
+   "d2 is the group difference at 0",
+   "d3 is the change in slope; slope for the other group = d1 + d3",
+   "Uses p-values for d1, d2, d3"
+  ]
+ },
+ "REG08-P": {
+  "title": "Invoice processing time",
+  "context": "An accounts-payable team measures how long it takes to process supplier invoices.",
+  "variables": {
+   "processing time": "minutes from receipt to approval",
+   "line items": "number of lines on the invoice",
+   "Manual entry": "1 = keyed in manually, 0 = received electronically (e-invoice)"
+  },
+  "kind": "prediction",
+  "equation": "Predicted processing time = b0 + b1·[line items] + b2·[Manual entry]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 4.5,
+    "p": 0.002
+   },
+   {
+    "term": "line items",
+    "est": 0.65,
+    "p": 0.001
+   },
+   {
+    "term": "Manual entry",
+    "est": 11.0,
+    "p": 0.001
+   }
+  ],
+  "prompt": "Predict processing time (minutes) when line items = 14 line items for manually entered invoices.",
+  "model": "Insert the values: 4.5 + 0.65 × 14 + 11 × 1 = 24.6 minutes. Manual entry is a dummy, so it enters as 1 (manually entered invoices).",
+  "points": [
+   "Uses every coefficient, including the intercept",
+   "Codes the dummy correctly as 1",
+   "Gets 24.6 minutes and states the unit"
+  ]
+ },
+ "REG08-S": {
+  "title": "Invoice processing time",
+  "context": "An accounts-payable team measures how long it takes to process supplier invoices.",
+  "variables": {
+   "processing time": "minutes from receipt to approval",
+   "line items": "number of lines on the invoice",
+   "Manual entry": "1 = keyed in manually, 0 = received electronically (e-invoice)"
+  },
+  "kind": "dummy",
+  "equation": "Predicted processing time = a0 + a1·[Manual entry]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 9.8,
+    "p": 0.001
+   },
+   {
+    "term": "Manual entry",
+    "est": 13.6,
+    "p": 0.001
+   }
+  ],
+  "prompt": "Interpret both coefficients of this model.",
+  "model": "The intercept (9.8) is the average processing time for the reference group, electronically received invoices. The coefficient a1 means manually entered invoices have on average 13.6 minutes higher processing time than electronically received invoices (predicted 23.4 vs 9.8). The p-value (0.001) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero.",
+  "points": [
+   "Intercept = mean of the reference group",
+   "Dummy = difference between the groups, with direction and unit",
+   "Uses the p-value correctly"
+  ]
+ },
+ "REG08-Q": {
+  "title": "Invoice processing time",
+  "context": "An accounts-payable team measures how long it takes to process supplier invoices.",
+  "variables": {
+   "processing time": "minutes from receipt to approval",
+   "line items": "number of lines on the invoice",
+   "Manual entry": "1 = keyed in manually, 0 = received electronically (e-invoice)"
+  },
+  "kind": "quadratic",
+  "equation": "Predicted processing time = c0 + c1·[line items] + c2·[line items]²",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 5.0,
+    "p": 0.01
+   },
+   {
+    "term": "line items",
+    "est": 0.4,
+    "p": 0.003
+   },
+   {
+    "term": "line items²",
+    "est": 0.006,
+    "p": 0.048
+   }
+  ],
+  "prompt": "What do you learn from the coefficient and p-value of the line items² term?",
+  "model": "The squared term (0.006) is positive, so the relationship has a U shape (convex): the effect of one more unit of line items gets larger as line items increases. The p-value (0.048) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. So the data support a curved rather than a straight-line relationship.",
+  "points": [
+   "Interprets the sign as curvature",
+   "Uses the p-value of the squared term",
+   "Concludes whether the relationship is non-linear"
+  ]
+ },
+ "REG08-I": {
+  "title": "Invoice processing time",
+  "context": "An accounts-payable team measures how long it takes to process supplier invoices.",
+  "variables": {
+   "processing time": "minutes from receipt to approval",
+   "line items": "number of lines on the invoice",
+   "Manual entry": "1 = keyed in manually, 0 = received electronically (e-invoice)"
+  },
+  "kind": "interaction",
+  "equation": "Predicted processing time = d0 + d1·[line items] + d2·[Manual entry] + d3·([line items]×[Manual entry])",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 4.0,
+    "p": 0.004
+   },
+   {
+    "term": "line items",
+    "est": 0.35,
+    "p": 0.002
+   },
+   {
+    "term": "Manual entry",
+    "est": 6.5,
+    "p": 0.041
+   },
+   {
+    "term": "line items×Manual entry",
+    "est": 0.48,
+    "p": 0.001
+   }
+  ],
+  "prompt": "Interpret all four coefficients in context, including their p-values.",
+  "model": "d0 (4): predicted processing time for electronically received invoices when line items = 0. d1 (0.35): for electronically received invoices, each additional unit of line items (line items) is associated with 0.35 minutes change in processing time. The p-value (0.002) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. d2 (6.5): the difference between manually entered invoices and electronically received invoices when line items = 0. The p-value (0.041) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. d3 (0.48): how much the slope of line items differs for manually entered invoices; their slope is d1 + d3 = 0.83 minutes per unit. The p-value (0.001) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero.",
+  "points": [
+   "Intercept refers to the reference group at 0",
+   "d1 is the slope for the reference group only",
+   "d2 is the group difference at 0",
+   "d3 is the change in slope; slope for the other group = d1 + d3",
+   "Uses p-values for d1, d2, d3"
+  ]
+ },
+ "REG09-P": {
+  "title": "Chinook monthly revenue",
+  "context": "The Chinook music store relates monthly revenue to its catalogue additions.",
+  "variables": {
+   "monthly revenue": "invoice total for the month (USD)",
+   "new tracks": "tracks added to the catalogue that month",
+   "Promotion month": "1 = price promotion that month, 0 = no promotion"
+  },
+  "kind": "prediction",
+  "equation": "Predicted monthly revenue = b0 + b1·[new tracks] + b2·[Promotion month]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 31.0,
+    "p": 0.001
+   },
+   {
+    "term": "new tracks",
+    "est": 0.12,
+    "p": 0.037
+   },
+   {
+    "term": "Promotion month",
+    "est": 6.8,
+    "p": 0.21
+   }
+  ],
+  "prompt": "Predict monthly revenue (USD) when new tracks = 40 tracks for promotion months.",
+  "model": "Insert the values: 31 + 0.12 × 40 + 6.8 × 1 = 42.6 USD. Promotion month is a dummy, so it enters as 1 (promotion months).",
+  "points": [
+   "Uses every coefficient, including the intercept",
+   "Codes the dummy correctly as 1",
+   "Gets 42.6 USD and states the unit"
+  ]
+ },
+ "REG09-S": {
+  "title": "Chinook monthly revenue",
+  "context": "The Chinook music store relates monthly revenue to its catalogue additions.",
+  "variables": {
+   "monthly revenue": "invoice total for the month (USD)",
+   "new tracks": "tracks added to the catalogue that month",
+   "Promotion month": "1 = price promotion that month, 0 = no promotion"
+  },
+  "kind": "continuous",
+  "equation": "Predicted monthly revenue = a0 + a1·[new tracks]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 33.0,
+    "p": 0.001
+   },
+   {
+    "term": "new tracks",
+    "est": 0.11,
+    "p": 0.061
+   }
+  ],
+  "prompt": "Interpret the coefficient on new tracks, including its p-value.",
+  "model": "Each additional track of new tracks is associated with a 0.11 USD higher monthly revenue on average. The p-value (0.061) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). The intercept (33) is the predicted monthly revenue when new tracks is 0. This is an association, not proof of causation.",
+  "points": [
+   "Gives size, direction and unit of the slope",
+   "Uses the p-value correctly (5% level)",
+   "Avoids a causal claim"
+  ]
+ },
+ "REG09-Q": {
+  "title": "Chinook monthly revenue",
+  "context": "The Chinook music store relates monthly revenue to its catalogue additions.",
+  "variables": {
+   "monthly revenue": "invoice total for the month (USD)",
+   "new tracks": "tracks added to the catalogue that month",
+   "Promotion month": "1 = price promotion that month, 0 = no promotion"
+  },
+  "kind": "quadratic",
+  "equation": "Predicted monthly revenue = c0 + c1·[new tracks] + c2·[new tracks]²",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 30.0,
+    "p": 0.001
+   },
+   {
+    "term": "new tracks",
+    "est": 0.25,
+    "p": 0.02
+   },
+   {
+    "term": "new tracks²",
+    "est": -0.0011,
+    "p": 0.13
+   }
+  ],
+  "prompt": "What do you learn from the coefficient and p-value of the new tracks² term?",
+  "model": "The squared term (-0.0011) is negative, so the relationship has an inverted U (concave): the effect of one more unit of new tracks gets smaller as new tracks increases. The p-value (0.130) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). So the data do not clearly support a curve; a straight line may be adequate.",
+  "points": [
+   "Interprets the sign as curvature",
+   "Uses the p-value of the squared term",
+   "Concludes whether the relationship is non-linear"
+  ]
+ },
+ "REG09-I": {
+  "title": "Chinook monthly revenue",
+  "context": "The Chinook music store relates monthly revenue to its catalogue additions.",
+  "variables": {
+   "monthly revenue": "invoice total for the month (USD)",
+   "new tracks": "tracks added to the catalogue that month",
+   "Promotion month": "1 = price promotion that month, 0 = no promotion"
+  },
+  "kind": "interaction",
+  "equation": "Predicted monthly revenue = d0 + d1·[new tracks] + d2·[Promotion month] + d3·([new tracks]×[Promotion month])",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 32.0,
+    "p": 0.001
+   },
+   {
+    "term": "new tracks",
+    "est": 0.09,
+    "p": 0.09
+   },
+   {
+    "term": "Promotion month",
+    "est": 2.0,
+    "p": 0.62
+   },
+   {
+    "term": "new tracks×Promotion month",
+    "est": 0.07,
+    "p": 0.3
+   }
+  ],
+  "prompt": "Interpret all four coefficients in context, including their p-values.",
+  "model": "d0 (32): predicted monthly revenue for months without a promotion when new tracks = 0. d1 (0.09): for months without a promotion, each additional unit of new tracks (tracks) is associated with 0.09 USD change in monthly revenue. The p-value (0.090) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). d2 (2): the difference between promotion months and months without a promotion when new tracks = 0. The p-value (0.620) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). d3 (0.07): how much the slope of new tracks differs for promotion months; their slope is d1 + d3 = 0.16 USD per unit. The p-value (0.300) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance).",
+  "points": [
+   "Intercept refers to the reference group at 0",
+   "d1 is the slope for the reference group only",
+   "d2 is the group difference at 0",
+   "d3 is the change in slope; slope for the other group = d1 + d3",
+   "Uses p-values for d1, d2, d3"
+  ]
+ },
+ "REG10-P": {
+  "title": "Accountant salaries",
+  "context": "A recruitment agency studies starting salaries of accountants.",
+  "variables": {
+   "monthly salary": "monthly salary (thousand DKK)",
+   "experience": "years of work experience",
+   "Certified": "1 = holds the certification, 0 = does not"
+  },
+  "kind": "prediction",
+  "equation": "Predicted monthly salary = b0 + b1·[experience] + b2·[Certified]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 34.0,
+    "p": 0.001
+   },
+   {
+    "term": "experience",
+    "est": 1.2,
+    "p": 0.001
+   },
+   {
+    "term": "Certified",
+    "est": 9.5,
+    "p": 0.001
+   }
+  ],
+  "prompt": "Predict monthly salary (thousand DKK) when experience = 6 years for certified accountants (statsautoriseret).",
+  "model": "Insert the values: 34 + 1.2 × 6 + 9.5 × 1 = 50.7 thousand DKK. Certified is a dummy, so it enters as 1 (certified accountants (statsautoriseret)).",
+  "points": [
+   "Uses every coefficient, including the intercept",
+   "Codes the dummy correctly as 1",
+   "Gets 50.7 thousand DKK and states the unit"
+  ]
+ },
+ "REG10-S": {
+  "title": "Accountant salaries",
+  "context": "A recruitment agency studies starting salaries of accountants.",
+  "variables": {
+   "monthly salary": "monthly salary (thousand DKK)",
+   "experience": "years of work experience",
+   "Certified": "1 = holds the certification, 0 = does not"
+  },
+  "kind": "dummy",
+  "equation": "Predicted monthly salary = a0 + a1·[Certified]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 41.0,
+    "p": 0.001
+   },
+   {
+    "term": "Certified",
+    "est": 12.3,
+    "p": 0.001
+   }
+  ],
+  "prompt": "Interpret both coefficients of this model.",
+  "model": "The intercept (41) is the average monthly salary for the reference group, non-certified accountants. The coefficient a1 means certified accountants (statsautoriseret) have on average 12.3 thousand DKK higher monthly salary than non-certified accountants (predicted 53.3 vs 41). The p-value (0.001) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero.",
+  "points": [
+   "Intercept = mean of the reference group",
+   "Dummy = difference between the groups, with direction and unit",
+   "Uses the p-value correctly"
+  ]
+ },
+ "REG10-Q": {
+  "title": "Accountant salaries",
+  "context": "A recruitment agency studies starting salaries of accountants.",
+  "variables": {
+   "monthly salary": "monthly salary (thousand DKK)",
+   "experience": "years of work experience",
+   "Certified": "1 = holds the certification, 0 = does not"
+  },
+  "kind": "quadratic",
+  "equation": "Predicted monthly salary = c0 + c1·[experience] + c2·[experience]²",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 33.0,
+    "p": 0.001
+   },
+   {
+    "term": "experience",
+    "est": 2.1,
+    "p": 0.001
+   },
+   {
+    "term": "experience²",
+    "est": -0.045,
+    "p": 0.002
+   }
+  ],
+  "prompt": "At what value of experience (years) is predicted monthly salary at its maximum? Round to 2 decimals.",
+  "model": "The squared term (-0.045) is negative, so the relationship has an inverted U (concave): the effect of one more unit of experience gets smaller as experience increases. The maximum is where the slope c1 + 2·c2·experience equals zero: experience = −c1 / (2·c2) = −2.1 / (2 × -0.045) = 23.33 years.",
+  "points": [
+   "Recognises the sign of the squared term",
+   "Uses −c1 / (2·c2)",
+   "Gets 23.33 years"
+  ]
+ },
+ "REG10-I": {
+  "title": "Accountant salaries",
+  "context": "A recruitment agency studies starting salaries of accountants.",
+  "variables": {
+   "monthly salary": "monthly salary (thousand DKK)",
+   "experience": "years of work experience",
+   "Certified": "1 = holds the certification, 0 = does not"
+  },
+  "kind": "interaction",
+  "equation": "Predicted monthly salary = d0 + d1·[experience] + d2·[Certified] + d3·([experience]×[Certified])",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 35.0,
+    "p": 0.001
+   },
+   {
+    "term": "experience",
+    "est": 1.0,
+    "p": 0.001
+   },
+   {
+    "term": "Certified",
+    "est": 4.0,
+    "p": 0.07
+   },
+   {
+    "term": "experience×Certified",
+    "est": 0.55,
+    "p": 0.016
+   }
+  ],
+  "prompt": "Interpret all four coefficients in context, including their p-values.",
+  "model": "d0 (35): predicted monthly salary for non-certified accountants when experience = 0. d1 (1): for non-certified accountants, each additional unit of experience (years) is associated with 1 thousand DKK change in monthly salary. The p-value (0.001) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. d2 (4): the difference between certified accountants (statsautoriseret) and non-certified accountants when experience = 0. The p-value (0.070) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). d3 (0.55): how much the slope of experience differs for certified accountants (statsautoriseret); their slope is d1 + d3 = 1.55 thousand DKK per unit. The p-value (0.016) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero.",
+  "points": [
+   "Intercept refers to the reference group at 0",
+   "d1 is the slope for the reference group only",
+   "d2 is the group difference at 0",
+   "d3 is the change in slope; slope for the other group = d1 + d3",
+   "Uses p-values for d1, d2, d3"
+  ]
+ },
+ "REG11-P": {
+  "title": "Inventory shrinkage",
+  "context": "A retailer analyses monthly inventory shrinkage across its stores.",
+  "variables": {
+   "shrinkage": "unexplained inventory loss per month (thousand DKK)",
+   "inventory value": "average inventory value (million DKK)",
+   "Self-checkout": "1 = store has self-checkout tills, 0 = no self-checkout"
+  },
+  "kind": "prediction",
+  "equation": "Predicted shrinkage = b0 + b1·[inventory value] + b2·[Self-checkout]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 2.1,
+    "p": 0.21
+   },
+   {
+    "term": "inventory value",
+    "est": 1.4,
+    "p": 0.001
+   },
+   {
+    "term": "Self-checkout",
+    "est": 3.9,
+    "p": 0.019
+   }
+  ],
+  "prompt": "Predict shrinkage (thousand DKK) when inventory value = 8.5 million DKK for stores with self-checkout.",
+  "model": "Insert the values: 2.1 + 1.4 × 8.5 + 3.9 × 1 = 17.9 thousand DKK. Self-checkout is a dummy, so it enters as 1 (stores with self-checkout).",
+  "points": [
+   "Uses every coefficient, including the intercept",
+   "Codes the dummy correctly as 1",
+   "Gets 17.9 thousand DKK and states the unit"
+  ]
+ },
+ "REG11-S": {
+  "title": "Inventory shrinkage",
+  "context": "A retailer analyses monthly inventory shrinkage across its stores.",
+  "variables": {
+   "shrinkage": "unexplained inventory loss per month (thousand DKK)",
+   "inventory value": "average inventory value (million DKK)",
+   "Self-checkout": "1 = store has self-checkout tills, 0 = no self-checkout"
+  },
+  "kind": "continuous",
+  "equation": "Predicted shrinkage = a0 + a1·[inventory value]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 2.8,
+    "p": 0.08
+   },
+   {
+    "term": "inventory value",
+    "est": 1.35,
+    "p": 0.001
+   }
+  ],
+  "prompt": "Interpret the coefficient on inventory value, including its p-value.",
+  "model": "Each additional million DKK of inventory value is associated with a 1.35 thousand DKK higher shrinkage on average. The p-value (0.001) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. The intercept (2.8) is the predicted shrinkage when inventory value is 0; 0 lies outside the range of the data (1–25 million DKK), so it is an extrapolation with little practical meaning. This is an association, not proof of causation.",
+  "points": [
+   "Gives size, direction and unit of the slope",
+   "Uses the p-value correctly (5% level)",
+   "Avoids a causal claim"
+  ]
+ },
+ "REG11-Q": {
+  "title": "Inventory shrinkage",
+  "context": "A retailer analyses monthly inventory shrinkage across its stores.",
+  "variables": {
+   "shrinkage": "unexplained inventory loss per month (thousand DKK)",
+   "inventory value": "average inventory value (million DKK)",
+   "Self-checkout": "1 = store has self-checkout tills, 0 = no self-checkout"
+  },
+  "kind": "quadratic",
+  "equation": "Predicted shrinkage = c0 + c1·[inventory value] + c2·[inventory value]²",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 3.5,
+    "p": 0.04
+   },
+   {
+    "term": "inventory value",
+    "est": 0.9,
+    "p": 0.003
+   },
+   {
+    "term": "inventory value²",
+    "est": 0.032,
+    "p": 0.11
+   }
+  ],
+  "prompt": "What do you learn from the coefficient and p-value of the inventory value² term?",
+  "model": "The squared term (0.032) is positive, so the relationship has a U shape (convex): the effect of one more unit of inventory value gets larger as inventory value increases. The p-value (0.110) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). So the data do not clearly support a curve; a straight line may be adequate.",
+  "points": [
+   "Interprets the sign as curvature",
+   "Uses the p-value of the squared term",
+   "Concludes whether the relationship is non-linear"
+  ]
+ },
+ "REG11-I": {
+  "title": "Inventory shrinkage",
+  "context": "A retailer analyses monthly inventory shrinkage across its stores.",
+  "variables": {
+   "shrinkage": "unexplained inventory loss per month (thousand DKK)",
+   "inventory value": "average inventory value (million DKK)",
+   "Self-checkout": "1 = store has self-checkout tills, 0 = no self-checkout"
+  },
+  "kind": "interaction",
+  "equation": "Predicted shrinkage = d0 + d1·[inventory value] + d2·[Self-checkout] + d3·([inventory value]×[Self-checkout])",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 2.5,
+    "p": 0.12
+   },
+   {
+    "term": "inventory value",
+    "est": 1.2,
+    "p": 0.001
+   },
+   {
+    "term": "Self-checkout",
+    "est": 0.8,
+    "p": 0.71
+   },
+   {
+    "term": "inventory value×Self-checkout",
+    "est": 0.55,
+    "p": 0.008
+   }
+  ],
+  "prompt": "Interpret all four coefficients in context, including their p-values.",
+  "model": "d0 (2.5): predicted shrinkage for stores without self-checkout when inventory value = 0. d1 (1.2): for stores without self-checkout, each additional unit of inventory value (million DKK) is associated with 1.2 thousand DKK change in shrinkage. The p-value (0.001) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. d2 (0.8): the difference between stores with self-checkout and stores without self-checkout when inventory value = 0. The p-value (0.710) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). d3 (0.55): how much the slope of inventory value differs for stores with self-checkout; their slope is d1 + d3 = 1.75 thousand DKK per unit. The p-value (0.008) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero.",
+  "points": [
+   "Intercept refers to the reference group at 0",
+   "d1 is the slope for the reference group only",
+   "d2 is the group difference at 0",
+   "d3 is the change in slope; slope for the other group = d1 + d3",
+   "Uses p-values for d1, d2, d3"
+  ]
+ },
+ "REG12-P": {
+  "title": "Apartment rents",
+  "context": "A property company studies monthly rents of its apartments.",
+  "variables": {
+   "monthly rent": "monthly rent (DKK)",
+   "floor area": "floor area (m²)",
+   "City centre": "1 = located in the city centre, 0 = outside"
+  },
+  "kind": "prediction",
+  "equation": "Predicted monthly rent = b0 + b1·[floor area] + b2·[City centre]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 2100.0,
+    "p": 0.001
+   },
+   {
+    "term": "floor area",
+    "est": 82.0,
+    "p": 0.001
+   },
+   {
+    "term": "City centre",
+    "est": 1450.0,
+    "p": 0.003
+   }
+  ],
+  "prompt": "Predict monthly rent (DKK) when floor area = 65 m² for city-centre apartments.",
+  "model": "Insert the values: 2,100 + 82 × 65 + 1,450 × 1 = 8,880 DKK. City centre is a dummy, so it enters as 1 (city-centre apartments).",
+  "points": [
+   "Uses every coefficient, including the intercept",
+   "Codes the dummy correctly as 1",
+   "Gets 8,880 DKK and states the unit"
+  ]
+ },
+ "REG12-S": {
+  "title": "Apartment rents",
+  "context": "A property company studies monthly rents of its apartments.",
+  "variables": {
+   "monthly rent": "monthly rent (DKK)",
+   "floor area": "floor area (m²)",
+   "City centre": "1 = located in the city centre, 0 = outside"
+  },
+  "kind": "dummy",
+  "equation": "Predicted monthly rent = a0 + a1·[City centre]",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 7600.0,
+    "p": 0.001
+   },
+   {
+    "term": "City centre",
+    "est": 1900.0,
+    "p": 0.012
+   }
+  ],
+  "prompt": "Interpret both coefficients of this model.",
+  "model": "The intercept (7,600) is the average monthly rent for the reference group, apartments outside the centre. The coefficient a1 means city-centre apartments have on average 1,900 DKK higher monthly rent than apartments outside the centre (predicted 9,500 vs 7,600). The p-value (0.012) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero.",
+  "points": [
+   "Intercept = mean of the reference group",
+   "Dummy = difference between the groups, with direction and unit",
+   "Uses the p-value correctly"
+  ]
+ },
+ "REG12-Q": {
+  "title": "Apartment rents",
+  "context": "A property company studies monthly rents of its apartments.",
+  "variables": {
+   "monthly rent": "monthly rent (DKK)",
+   "floor area": "floor area (m²)",
+   "City centre": "1 = located in the city centre, 0 = outside"
+  },
+  "kind": "quadratic",
+  "equation": "Predicted monthly rent = c0 + c1·[floor area] + c2·[floor area]²",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 1500.0,
+    "p": 0.03
+   },
+   {
+    "term": "floor area",
+    "est": 101.0,
+    "p": 0.001
+   },
+   {
+    "term": "floor area²",
+    "est": -0.12,
+    "p": 0.43
+   }
+  ],
+  "prompt": "What do you learn from the coefficient and p-value of the floor area² term?",
+  "model": "The squared term (-0.12) is negative, so the relationship has an inverted U (concave): the effect of one more unit of floor area gets smaller as floor area increases. The p-value (0.430) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). So the data do not clearly support a curve; a straight line may be adequate.",
+  "points": [
+   "Interprets the sign as curvature",
+   "Uses the p-value of the squared term",
+   "Concludes whether the relationship is non-linear"
+  ]
+ },
+ "REG12-I": {
+  "title": "Apartment rents",
+  "context": "A property company studies monthly rents of its apartments.",
+  "variables": {
+   "monthly rent": "monthly rent (DKK)",
+   "floor area": "floor area (m²)",
+   "City centre": "1 = located in the city centre, 0 = outside"
+  },
+  "kind": "interaction",
+  "equation": "Predicted monthly rent = d0 + d1·[floor area] + d2·[City centre] + d3·([floor area]×[City centre])",
+  "coefs": [
+   {
+    "term": "Intercept",
+    "est": 2300.0,
+    "p": 0.001
+   },
+   {
+    "term": "floor area",
+    "est": 78.0,
+    "p": 0.001
+   },
+   {
+    "term": "City centre",
+    "est": 600.0,
+    "p": 0.45
+   },
+   {
+    "term": "floor area×City centre",
+    "est": 14.0,
+    "p": 0.038
+   }
+  ],
+  "prompt": "Interpret all four coefficients in context, including their p-values.",
+  "model": "d0 (2,300): predicted monthly rent for apartments outside the centre when floor area = 0. d1 (78): for apartments outside the centre, each additional unit of floor area (m²) is associated with 78 DKK change in monthly rent. The p-value (0.001) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero. d2 (600): the difference between city-centre apartments and apartments outside the centre when floor area = 0. The p-value (0.450) is above 0.05, so the coefficient is not statistically significant at the 5% level: we cannot rule out that the true coefficient is zero (the effect could be due to chance). d3 (14): how much the slope of floor area differs for city-centre apartments; their slope is d1 + d3 = 92 DKK per unit. The p-value (0.038) is below 0.05, so the coefficient is statistically significant at the 5% level: we reject the null hypothesis that the true coefficient is zero.",
+  "points": [
+   "Intercept refers to the reference group at 0",
+   "d1 is the slope for the reference group only",
+   "d2 is the group difference at 0",
+   "d3 is the change in slope; slope for the other group = d1 + d3",
+   "Uses p-values for d1, d2, d3"
+  ]
+ }
+}

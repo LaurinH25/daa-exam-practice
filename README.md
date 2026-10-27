@@ -45,6 +45,28 @@ a small integer. The real safeguard is that the exam is oral and the examiner wa
 Regression predictions are still checked against plain values, because the interpretation
 exams show a model answer anyway.
 
+## Excel workbook upload
+
+Excel answers are checked by uploading the workbook; the file is read in the browser (SheetJS) and
+never sent to a server.
+
+* **Final-value questions:** the answer goes in cell A1 (or B1 next to a label) of a sheet named
+  after the question, e.g. `E302` — the cases' own convention for answer tabs (`P4_Q1`). The site
+  checks the value and whether it is calculated with a formula. Typing the value is still possible
+  in practice mode.
+* **Column tasks** (`X201`–`X502`, practice only): the student builds the columns of ETL Cases 2–4
+  and the IntegrateCo job codes; the site finds each column anywhere in the workbook (header and
+  position don't matter), reconciles its values, flags pasted values instead of formulas, and gives
+  hints for known mistakes. Case 4's PreparerName is left out because 148 journal lines have a
+  PreparerID/business unit pair that is not in PreparerInfo.
+* **Exam mode:** one workbook for all Excel questions of the exam, checked at *Finish exam*.
+
+## AI feedback on written interpretations (optional)
+
+`worker/` holds a Cloudflare Worker that asks Claude to compare a student's written interpretation
+with the model answer and checklist. It deploys from GitHub Actions once the secrets are set and is
+switched on by `site/assets/config.js`. Setup and cost: [worker/README.md](worker/README.md).
+
 No answer in the bank is typed by hand: `build/build.py` computes every value from the data,
 runs every reference SQL query and mistake variant, and stops if a query fails, returns nothing,
 or if a method note would reveal its answer.

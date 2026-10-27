@@ -11,6 +11,7 @@
   const DS = B.datasets;
   const app = document.getElementById("app");
   const SQLJS_CDN = "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/";
+  const FEEDBACK_URL = (window.DAA_CONFIG && window.DAA_CONFIG.feedbackUrl) || "";
 
   // ------------------------------------------------------------------ helpers
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -150,8 +151,9 @@
   }
 
   function reportHTML(r) {
-    const list = r.items ? `<ul class="recon">${r.items.map(i => `<li class="${i.ok ? "ok" : "bad"}"><span class="mark">${i.ok ? "✓" : "✗"}</span><strong>${esc(i.label)}</strong> <span>${esc(i.note)}</span></li>`).join("")}</ul>` : "";
-    const head = r.items ? (r.ok ? "Reconciles: your result matches the expected result." : "Does not reconcile yet.") : r.msg;
+    const mark = i => i.ok === "warn" ? ["warn", "!"] : i.ok ? ["ok", "✓"] : ["bad", "✗"];
+    const list = r.items ? `<ul class="recon">${r.items.map(i => { const [c, m] = mark(i); return `<li class="${c}"><span class="mark">${m}</span><strong>${esc(i.label)}</strong> <span>${esc(i.note)}</span></li>`; }).join("")}</ul>` : "";
+    const head = r.head || (r.items ? (r.ok ? "Reconciles: your result matches the expected result." : "Does not reconcile yet.") : r.msg);
     return `<div class="feedback ${r.ok ? "ok" : "bad"}" role="status"><strong>${esc(head)}</strong>${list}
       ${r.hint ? `<div class="hint"><strong>Hint:</strong> ${esc(r.hint)}</div>` : ""}</div>`;
   }
@@ -192,6 +194,93 @@
       <p class="muted small">${res.values.length} row${res.values.length === 1 ? "" : "s"}${res.values.length > limit ? `, first ${limit} shown` : ""}.</p>`;
   }
 
+  // ------------------------------------------------------------------ uploaded workbooks
+  // The file is read in the browser with SheetJS; it is never sent anywhere.
+  const XLSX_SRC = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+  let xlsxPromise = null;
+  function sheetLib() {
+    if (!xlsxPromise) xlsxPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = XLSX_SRC;
+      s.onload = () => resolve(window.XLSX);
+      s.onerror = () => { xlsxPromise = null; reject(new Error("The Excel reader could not be loaded (are you offline?).")); };
+      document.head.appendChild(s);
+    });
+    return xlsxPromise;
+  }
+  async function readWorkbook(file) {
+    const XLSX = await sheetLib();
+    const wb = XLSX.read(await file.arrayBuffer(), { type: "array", cellFormula: true });
+    return { name: file.name, XLSX, wb };
+  }
+  const books = {};   // practice mode: last workbook per data set, reused across its questions
+
+  function cellValue(c) {
+    if (!c) return null;
+    if (c.t === "e") return c.w || "#ERROR";
+    if (c.t === "z" || c.v === undefined || c.v === "") return null;
+    return c.v;
+  }
+
+  // Value questions: the answer sits in cell A1 of a sheet named after the question (as the
+  // cases name their answer tabs, e.g. P4_Q1). B1 is used when A1 holds a label.
+  async function checkWorkbookValue(q, book) {
+    const name = book.wb.SheetNames.find(n => n.trim().toLowerCase() === q.id.toLowerCase());
+    if (!name) return { ok: false, head: `No sheet named "${q.id}" in ${book.name}.`, items: [
+      { ok: false, label: "Answer sheet", note: `add a sheet named ${q.id} and put your final answer in cell A1` }] };
+    const ws = book.wb.Sheets[name];
+    let cell = ws.A1, ref = "A1";
+    if (cell && cell.t === "s" && cellValue(ws.B1) !== null) { cell = ws.B1; ref = "B1"; }
+    const v = cellValue(cell);
+    if (v === null) return { ok: false, head: `Cell ${name}!A1 is empty.`, items: [{ ok: false, label: "Answer cell", note: "put your final answer in A1" }] };
+    const r = await checkTyped(q, String(v));
+    const items = [{ ok: r.ok, label: "Answer", note: `${name}!${ref} ${r.ok ? "matches" : "does not match yet"}` }];
+    items.push(cell.f ? { ok: true, label: "Formula", note: "the answer is calculated, so it can be traced" }
+      : { ok: "warn", label: "Formula", note: "the value is typed in — keep the calculation so your work is traceable" });
+    return { ok: r.ok, head: r.ok ? "Correct." : "Not correct yet.", items, hint: r.hint };
+  }
+
+  // Column tasks: find each expected column anywhere in the workbook. Headers, sheet and
+  // position do not matter: every column's non-empty cells are compared as a whole, allowing
+  // up to five header or title cells above the data.
+  async function checkWorkbookColumns(q, book) {
+    const { XLSX, wb } = book;
+    const expected = q.check.columns;
+    const n = expected[0].rows;
+    const found = expected.map(() => null), hinted = expected.map(() => null);
+    for (const name of wb.SheetNames) {
+      const ws = wb.Sheets[name];
+      if (!ws["!ref"]) continue;
+      const range = XLSX.utils.decode_range(ws["!ref"]);
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cells = [];
+        for (let r = range.s.r; r <= range.e.r; r++) {
+          const cell = ws[XLSX.utils.encode_cell({ r, c })];
+          const v = cellValue(cell);
+          if (v !== null && String(v).trim() !== "") cells.push({ v: normCell(v), f: !!cell.f });
+        }
+        if (cells.length < n || cells.length > n + 5) continue;
+        for (let k = 0; k <= cells.length - n; k++) {
+          const win = cells.slice(k, k + n);
+          const h = await fp(q.id, "col" + win.map(x => x.v).sort(cmp).join(CELL));
+          expected.forEach((e, i) => {
+            if (!found[i] && h === e.fp) found[i] = { where: `${name}!${XLSX.utils.encode_col(c)}`, formulas: win.filter(x => x.f).length / n };
+            const m = e.mistakes.find(x => x.fp === h);
+            if (!found[i] && m) hinted[i] = m.hint;
+          });
+        }
+      }
+    }
+    const items = expected.map((e, i) => found[i]
+      ? { ok: found[i].formulas >= 0.9 ? true : "warn", label: e.name,
+          note: `found in ${found[i].where}` + (found[i].formulas >= 0.9 ? ", built with formulas" : " — values are pasted, not formulas (the case asks for a repeatable template)") }
+      : { ok: false, label: e.name, note: hinted[i] ? "found, but with a typical mistake (see hint)" : `not found — check the values in all ${n} rows` });
+    const ok = found.every(Boolean);
+    return { ok, head: ok ? "All columns reconcile." : `${found.filter(Boolean).length} of ${expected.length} columns reconcile.`, items,
+      hint: hinted.filter((h, i) => h && !found[i]).join(" ") || null };
+  }
+  const checkWorkbook = (q, book) => q.check.type === "columns" ? checkWorkbookColumns(q, book) : checkWorkbookValue(q, book);
+
   // ------------------------------------------------------------------ question component
   const METHOD_AFTER = 3;   // failed checks before the method note is offered
   function datasetFiles(key) {
@@ -230,12 +319,25 @@
         <div data-slot="result"></div>
       </section>`;
     }
-    return `<section class="card question stack" data-q="${q.id}" data-mode="${mode}">${head}
-      <p class="muted small">Work in Excel on <strong>${esc(d.files.join(", "))}</strong>, then type your final value.</p>
+    const columns = q.check.type === "columns";
+    const how = columns
+      ? `Build the columns in Excel on <strong>${esc(d.files.join(", "))}</strong>, save, and upload the workbook. Sheet, position and headers don't matter.`
+      : `Work in Excel on <strong>${esc(d.files.join(", "))}</strong>. Put your final answer in cell A1 of a sheet named <strong>${esc(q.id)}</strong> and upload the workbook${exam ? "" : " — or type the value below"}.`;
+    const book = exam ? examBook : books[q.file];
+    const typed = !columns && !exam ? `
       <div class="answer-row">
-        <input type="text" inputmode="decimal" aria-label="Your answer" placeholder="Your answer" value="${esc(drafts[q.id] || "")}">
-        ${exam ? "" : '<button class="btn primary" data-act="check">Check answer</button>'}${methodBtn}
+        <input type="text" inputmode="decimal" aria-label="Your answer" placeholder="…or type your answer" value="${esc(drafts[q.id] || "")}">
+        <button class="btn" data-act="check">Check typed answer</button>
+      </div>` : "";
+    return `<section class="card question stack" data-q="${q.id}" data-mode="${mode}">${head}
+      <p class="muted small">${how}</p>
+      <div class="row upload">
+        <label class="btn primary">${exam ? "Upload exam workbook" : "Check my workbook"}<input type="file" accept=".xlsx,.xlsm,.xls,.csv" data-act="upload" hidden></label>
+        ${book ? `<button class="btn" data-act="recheck">Check ${esc(book.name)} again</button>` : ""}
+        <span class="spacer"></span>${methodBtn}
       </div>
+      <p class="muted small" data-slot="book">${book ? `Workbook loaded: <strong>${esc(book.name)}</strong>${exam ? " — used for every Excel question in this exam" : ""}.` : "The file is read in your browser and is not uploaded to any server."}</p>
+      ${typed}
       ${examNote}
       <div data-slot="feedback"></div>
       <div data-slot="method"></div>
@@ -243,12 +345,13 @@
   }
 
   const drafts = {};
+  let examBook = null;   // exam mode: one workbook for all Excel questions of the exam
 
   // Grade a saved answer (used by Finish exam). Returns a report object.
   async function gradeDraft(q) {
+    if (q.subject !== "SQL") return examBook ? checkWorkbook(q, examBook) : { ok: false, msg: "No workbook uploaded." };
     const answer = (drafts[q.id] || "").trim();
     if (!answer) return { ok: false, msg: "No answer given." };
-    if (q.subject !== "SQL") return checkTyped(q, answer);
     try {
       const db = await getDB(q.file);
       return reconcile(q, runSQL(db, answer));
@@ -261,8 +364,8 @@
     const fb = $('[data-slot="feedback"]', root);
     const show = html => { fb.innerHTML = html; };
     const info = msg => show(`<div class="feedback info" role="status">${esc(msg)}</div>`);
-    const field = $("textarea, input", root);
-    field.addEventListener("input", () => { drafts[q.id] = field.value; });
+    const field = $("textarea, input[type=text]", root);
+    if (field) field.addEventListener("input", () => { drafts[q.id] = field.value; });
 
     const methodBtn = $('[data-act="method"]', root);
     const updateMethod = () => {
@@ -284,12 +387,40 @@
     };
 
     if (q.subject !== "SQL") {
-      const check = async () => {
-        const r = await checkTyped(q, field.value);
-        if (r.empty) return info(r.msg);
-        record(r);
+      const bookNote = $('[data-slot="book"]', root);
+      const checkBook = async book => {
+        if (exam) return;   // exam mode: checked at Finish
+        show(`<p class="loading">Checking ${esc(book.name)}…</p>`);
+        try { record(await checkWorkbook(q, book)); }
+        catch (e) { show(`<div class="feedback bad">${esc(e.message)}</div>`); }
       };
-      if (!exam) {
+      $('[data-act="upload"]', root).addEventListener("change", async ev => {
+        const file = ev.target.files[0];
+        if (!file) return;
+        show(`<p class="loading">Reading ${esc(file.name)}…</p>`);
+        let book;
+        try { book = await readWorkbook(file); }
+        catch (e) { return show(`<div class="feedback bad">Could not read this file: ${esc(e.message)}</div>`); }
+        ev.target.value = "";
+        if (exam) {
+          examBook = book;
+          bookNote.innerHTML = `Workbook loaded: <strong>${esc(book.name)}</strong> — used for every Excel question in this exam.`;
+          show("");
+          onResult && onResult({ ok: false, saved: true });
+        } else {
+          books[q.file] = book;
+          bookNote.innerHTML = `Workbook loaded: <strong>${esc(book.name)}</strong>.`;
+          checkBook(book);
+        }
+      });
+      const again = $('[data-act="recheck"]', root);
+      if (again) again.addEventListener("click", () => checkBook(books[q.file]));
+      if (field) {
+        const check = async () => {
+          const r = await checkTyped(q, field.value);
+          if (r.empty) return info(r.msg);
+          record(r);
+        };
         $('[data-act="check"]', root).addEventListener("click", check);
         field.addEventListener("keydown", e => { if (e.key === "Enter") check(); });
       }
@@ -414,6 +545,8 @@
     let current = 0;
     let finished = false;   // like the real exam: no feedback until the student hands in
     const results = {};     // this attempt's outcome per question, shown in the sidebar after Finish
+    examBook = null;
+    const answered = q => q.subject === "SQL" ? !!(drafts[q.id] || "").trim() : !!examBook;
     app.innerHTML = `
       <div class="row"><a href="#/exams" class="btn ghost">← All exams</a></div>
       <p class="eyebrow" style="margin-top:8px">${e.id} · Data manipulation exam · ≈ ${fmtNum(e.minutes, 1)} minutes</p>
@@ -438,7 +571,7 @@
         <div id="qpane"></div>
       </div>`;
     const nav = $("#qnav"), pane = $("#qpane");
-    const navDot = q => finished ? (results[q.id] ? "ok" : "bad") : (drafts[q.id] || "").trim() ? "saved" : "";
+    const navDot = q => finished ? (results[q.id] ? "ok" : "bad") : answered(q) ? "saved" : "";
     const drawNav = () => {
       nav.innerHTML = qs.map((q, i) => `<button class="${i === current ? "active" : ""}" data-i="${i}" aria-current="${i === current}">
         <span class="dot ${navDot(q)}"></span><span class="n">${String(i + 1).padStart(2, "0")}</span>${esc(q.subject)} <span class="muted small">${q.id}</span></button>`).join("");
@@ -450,7 +583,8 @@
         <button class="btn" id="next" ${current === qs.length - 1 ? "disabled" : ""}>Next →</button></div>`;
       const root = $(".question", pane);
       bindQuestion(root, r => { results[qs[current].id] = r.ok || results[qs[current].id]; drawNav(); });
-      $("textarea, input", root).addEventListener("input", drawNav);
+      const typed = $("textarea, input[type=text]", root);
+      if (typed) typed.addEventListener("input", drawNav);
       $("#prev").addEventListener("click", () => { current--; drawQ(); });
       $("#next").addEventListener("click", () => { current++; drawQ(); });
       drawNav();
@@ -473,18 +607,19 @@
       $("#t-start").textContent = "Start"; $("#clock").textContent = clock(total); $("#clock").className = "clock"; $("#elapsed").textContent = "0:00";
     });
     $("#finish").addEventListener("click", async () => {
-      const unanswered = qs.filter(q => !(drafts[q.id] || "").trim()).length;
+      const unanswered = qs.filter(q => !answered(q)).length;
       if (!finished && unanswered && !confirm(`${unanswered} question${unanswered > 1 ? "s have" : " has"} no answer yet. Finish anyway?`)) return;
       clearInterval(t.h); t.running = false; $("#t-start").textContent = "Resume";
       pane.innerHTML = `<section class="card"><p class="loading">Reconciling your answers…</p></section>`;
       const reports = [];
       for (const q of qs) {
         const r = await gradeDraft(q);
-        if ((drafts[q.id] || "").trim()) Store.recordQ(q.id, r.ok);
+        if (answered(q)) Store.recordQ(q.id, r.ok);
         results[q.id] = r.ok;
         reports.push(r);
       }
       finished = true;
+      if (examBook) books[e.files[0]] = examBook;   // keep checking against it after Finish
       const correct = reports.filter(r => r.ok).length;
       Store.data.exams[e.id] = { correct, total: qs.length, seconds: t.elapsed, at: Date.now() }; Store.save();
       pane.innerHTML = `<section class="card stack"><h2>Exam result: ${correct} of ${qs.length}</h2>
@@ -577,7 +712,8 @@
           <p class="prompt" style="font-weight:500">${esc(q.prompt)}</p>
           ${q.answer ? `<div class="answer-row"><input type="text" inputmode="decimal" placeholder="Your number"><button class="btn primary" data-act="check">Check</button></div><div data-slot="fb"></div>` : ""}
           <textarea rows="3" placeholder="Write (or say out loud) your interpretation before you look at the model answer…" aria-label="Your interpretation"></textarea>
-          <div><button class="btn" data-act="model">Show model answer</button></div>
+          <div class="row">${FEEDBACK_URL ? '<button class="btn primary" data-act="ai">Get AI feedback</button>' : ""}<button class="btn" data-act="model">Show model answer</button></div>
+          <div data-slot="ai"></div>
           <div class="hidden stack" data-slot="model">
             <div class="feedback info">${esc(q.model)}</div>
             <div class="points"><p class="small muted" style="margin:0">Tick what your answer covered:</p>${q.points.map(p => `<label><input type="checkbox"> ${esc(p)}</label>`).join("")}</div>
@@ -596,7 +732,36 @@
         $('[data-slot="model"]', sec).classList.remove("hidden");
         Store.data.reg[r.id] = Date.now(); Store.save();
       });
+      const ai = $('[data-act="ai"]', sec);
+      if (ai) ai.addEventListener("click", async () => {
+        const slot = $('[data-slot="ai"]', sec);
+        const answer = $("textarea", sec).value.trim();
+        if (answer.length < 20) { slot.innerHTML = `<div class="feedback info">Write your interpretation first (a sentence or two).</div>`; return; }
+        ai.disabled = true;
+        slot.innerHTML = `<p class="loading">Comparing your answer with the model answer…</p>`;
+        try {
+          const res = await fetch(FEEDBACK_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ questionId: q.id, answer }) });
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || `The feedback service answered ${res.status}.`);
+          slot.innerHTML = aiFeedbackHTML(data);
+          Store.data.reg[r.id] = Date.now(); Store.save();
+        } catch (e) {
+          slot.innerHTML = `<div class="feedback bad">${esc(e.message === "Failed to fetch" ? "Could not reach the feedback service." : e.message)}</div>`;
+        } finally { ai.disabled = false; }
+      });
     });
+  }
+
+  // AI feedback is advisory: it compares the student's text with the model answer and its checklist.
+  function aiFeedbackHTML(d) {
+    const covered = (d.points || []).filter(p => p.covered).length;
+    return `<div class="feedback info stack">
+      <div><strong>AI feedback</strong> <span class="muted small">— ${covered} of ${(d.points || []).length} checklist points covered</span></div>
+      <p style="margin:0">${esc(d.feedback || "")}</p>
+      <ul class="recon">${(d.points || []).map(p => `<li class="${p.covered ? "ok" : "bad"}"><span class="mark">${p.covered ? "✓" : "✗"}</span><strong>${esc(p.point)}</strong> <span>${esc(p.comment)}</span></li>`).join("")}</ul>
+      ${(d.errors || []).length ? `<div class="hint"><strong>Check these statements:</strong><ul style="margin:4px 0 0;padding-left:18px">${d.errors.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+      <p class="muted small" style="margin:0">Generated by an AI model; it can be wrong. Compare with the model answer.</p>
+    </div>`;
   }
 
   function viewConcepts() {

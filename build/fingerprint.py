@@ -99,3 +99,9 @@ def text_fingerprint(qid, accept):
 
 def text_mistake(qid, value):
     return fp(qid, "txt" + norm_text(value))
+
+
+def column_fingerprint(qid, values):
+    """A workbook column: the multiset of its values, independent of order and header."""
+    norm = sorted((norm_cell(v) for v in values), key=sort_key)
+    return fp(qid, "col" + CELL_SEP.join(norm))

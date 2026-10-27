@@ -420,6 +420,85 @@ def payroll_questions(d):
     ], mistakes)
 
 
+# ---------------------------------------------------------------- workbook column tasks
+# The student builds the columns in Excel and uploads the workbook; the site finds
+# each column (any sheet, any position, any header) and reconciles its values.
+# These tasks are practice-only, so the exam draw is not affected.
+def col(name, values, mistakes=()):
+    return dict(name=name, values=list(values), mistakes=[(list(v), hint) for v, hint in mistakes])
+
+
+def column_task(id, file, course, topics, minutes, prompt, columns, solution):
+    return dict(id=id, file=file, subject="Excel", course=course, topics=topics, minutes=minutes, prompt=prompt,
+                practiceOnly=True, check=dict(type="columns", columns=columns), solution=solution)
+
+
+def column_tasks(d):
+    c2 = pd.read_excel(d / "ETL_Case2_employee_codes.xlsx", sheet_name="Case 2")
+    loc2, emp2, plant2, pay2 = zip(*c2.EmployeeCode.map(split_case2))
+    lp2 = [f"{a}-{b}" for a, b in zip(loc2, plant2)]
+
+    c3 = pd.read_excel(d / "ETL_Case3_employee_codes_messy.xlsx", sheet_name="Case 3 data")
+    loc3, emp3, plant3, pay3, raw3 = zip(*c3.EmployeeCode.map(split_case3))
+    lp3 = [f"{a}-{b}" for a, b in zip(loc3, plant3)]
+
+    x = pd.read_excel(d / "ETL_Case4_journal_entries.xlsx", sheet_name=None)
+    je = x["JELineItems"].copy()
+    coa = x["ChartOfAccounts"].iloc[:, :4].copy()
+    bu = x["BusinessUnits"]
+    src = x["Source"].drop_duplicates("SourceID")
+    je["GLk"] = je.GLAccountNumber.astype(str).str.strip()
+    coa["GLk"] = coa.GLAccountNumber.astype(str).str.strip()
+    # PreparerName is left out: 148 lines have a PreparerID/BusinessUnitID pair that is not in
+    # PreparerInfo, and the case does not say what the flat file should show for them.
+    m = (je.merge(coa[["GLk", "GLAccountName", "AccountType", "AccountClass"]], on="GLk", how="left")
+           .merge(bu[["BusinessUnitID", "BusinessUnit"]], on="BusinessUnitID", how="left")
+           .merge(src, on="SourceID", how="left"))
+    assert len(m) == len(je) and not m[["GLAccountName", "Source", "BusinessUnit"]].isna().any().any()
+    gl_numeric_only = [n if str(k).isdigit() else "#N/A" for n, k in zip(m.GLAccountName, m.GLk)]
+
+    p15 = pd.read_csv(d / "IntegrateCo_2015payroll.csv", sep="|", dtype={"Job": str})
+    p16 = pd.read_csv(d / "IntegrateCo_2016payroll.csv", sep="|", dtype={"Project": str})
+    code15, code16 = p15.Job.map(job_code), p16.Project.map(job_code)
+    fixed_mid = "Not every code has a department letter: =MID(Job,3,3) breaks on codes like 14H002. Start at position 4 when the third character is a letter."
+
+    upload = " Then upload your workbook (.xlsx) here."
+    formulas = " Use formulas so the template is repeatable."
+    return [
+        column_task("X201", "case2", ETL, ["text_functions", "unique_identifier", "workbook"], 8,
+                    "Split EmployeeCode into Location, EmpID, PlantID and PayPeriod, and build LocationPlantID (e.g. USA-12) for all 597 employees." + formulas + upload,
+                    [col("Location", loc2), col("EmpID", emp2),
+                     col("PlantID", plant2, [([f"{p}{q}" for p, q in zip(plant2, pay2)], "Your PlantID still contains the pay-period letter. Take only the digits between the hyphen and the last letter.")]),
+                     col("PayPeriod", pay2),
+                     col("LocationPlantID", lp2, [([f"{a}{b}" for a, b in zip(loc2, plant2)], "Join Location and PlantID with a hyphen: USA-12, not USA12.")])],
+                    "LEFT for Location, MID for EmpID, MID with FIND(\"-\") for PlantID, RIGHT for PayPeriod, then Location&\"-\"&PlantID."),
+        column_task("X301", "case3", ETL, ["text_functions", "messy_data", "workbook"], 12,
+                    "The messy codes: split EmployeeCode into Location, EmpID, PlantID and PayPeriod (normalised to M or W), and build LocationPlantID (e.g. US-3) for all 597 employees." + formulas + upload,
+                    [col("Location", loc3, [([str(c)[:3] for c in c3.EmployeeCode], "Location codes are not always three characters here (US, Canada, Japan). Take the letters before the first digit.")]),
+                     col("EmpID", emp3), col("PlantID", plant3),
+                     col("PayPeriod", pay3, [(raw3, "Normalise the pay period: Mo means M and We means W.")]),
+                     col("LocationPlantID", lp3)],
+                    "Find the first digit with MIN(FIND({0,…,9}, code&\"0123456789\")); LEFT before it is the Location, MID up to the hyphen is EmpID; normalise the pay period with IF."),
+        column_task("X401", "journal", ETL, ["lookup", "composite_key", "workbook"], 12,
+                    "Build the flat file: for every journal entry line add BusinessUnit, GLAccountName, AccountType, AccountClass and Source." + formulas + upload,
+                    [col("BusinessUnit", m.BusinessUnit),
+                     col("GLAccountName", m.GLAccountName, [(gl_numeric_only, "Two Cost of Goods Sold accounts use text codes (70300-FS, 70300-HP), so a numeric lookup returns #N/A. Make both sides text before matching.")]),
+                     col("AccountType", m.AccountType), col("AccountClass", m.AccountClass),
+                     col("Source", m.Source)],
+                    "INDEX/MATCH or XLOOKUP into each master tab (BusinessUnits, ChartOfAccounts, Source); GLAccountNumber mixes numbers and text codes."),
+        column_task("X501", "payroll", PAY, ["text_functions", "expression", "workbook"], 8,
+                    "In the 2015 payroll, add JobCode (the three-digit job code from Job) and GrossPay (Reg_Pay + OT_Pay) for every row." + upload,
+                    [col("JobCode", code15, [(p15.Job.str[2:5], fixed_mid)]),
+                     col("GrossPay", (p15.Reg_Pay + p15.OT_Pay).round(2), [(p15.Reg_Pay, "Gross pay is Reg_Pay + OT_Pay; you only used regular pay.")])],
+                    "JobCode =MID(H2, IF(ISNUMBER(VALUE(MID(H2,3,1))), 3, 4), 3) kept as text; GrossPay =K2+L2."),
+        column_task("X502", "payroll", PAY, ["text_functions", "workbook"], 5,
+                    "In the 2016 payroll, add JobCode: the three-digit job code taken from Project, for every row." + upload,
+                    [col("JobCode", code16, [(p16.Project.str[2:5], fixed_mid)])],
+                    "Same rule as 2015: =MID(A2, IF(ISNUMBER(VALUE(MID(A2,3,1))), 3, 4), 3)."),
+    ]
+
+
 def build(files_dir):
     return (film_questions(files_dir) + case1_questions(files_dir) + case2_questions(files_dir)
-            + case3_questions(files_dir) + case4_questions(files_dir) + payroll_questions(files_dir))
+            + case3_questions(files_dir) + case4_questions(files_dir) + payroll_questions(files_dir)
+            + column_tasks(files_dir))

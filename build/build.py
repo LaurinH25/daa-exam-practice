@@ -113,6 +113,19 @@ def secure_typed(questions):
     leaks = []
     for qn in questions:
         c, qid = qn["check"], qn["id"]
+        if c["type"] == "columns":
+            cols = []
+            for column in c["columns"]:
+                right = fingerprint.column_fingerprint(qid, column["values"])
+                wrong = []
+                for values, hint in column["mistakes"]:
+                    h = fingerprint.column_fingerprint(qid, values)
+                    if h != right:
+                        wrong.append(dict(fp=h, hint=hint))
+                cols.append(dict(name=column["name"], rows=len(column["values"]), fp=right, mistakes=wrong))
+            qn["check"] = dict(type="columns", columns=cols)
+            qn["method"] = qn.pop("solution")
+            continue
         mistakes = []
         if c["type"] == "number":
             v = c["value"]
@@ -157,7 +170,8 @@ def make_exams(questions):
     rng = random.Random(EXAM_SEED)
     by_file = {}
     for qn in questions:
-        by_file.setdefault(qn["file"], []).append(qn)
+        if not qn.get("practiceOnly"):
+            by_file.setdefault(qn["file"], []).append(qn)
     excel_files = [k for k, v in DATASETS.items() if v["kind"] == "excel" and k in by_file]
     sql_files = [k for k, v in DATASETS.items() if v["kind"] == "sqlite" and k in by_file]
     used = Counter()
@@ -211,6 +225,12 @@ def main():
         regression=regression,
         concepts=bank_concepts.CONCEPTS,
     )
+    # The feedback Worker only accepts a question ID, so it carries its own copy of the
+    # interpretation questions and model answers.
+    worker_data = {q["id"]: dict(title=r["title"], context=r["context"], variables=r["variables"], kind=q["kind"],
+                                 equation=q["equation"], coefs=q["coefs"], prompt=q["prompt"], model=q["model"], points=q["points"])
+                   for r in regression for q in r["questions"]}
+    (ROOT / "worker" / "src" / "regression.json").write_text(json.dumps(worker_data, ensure_ascii=False, indent=1), encoding="utf-8")
     out = ROOT / "site" / "data" / "bank.js"
     out.write_text("window.BANK = " + json.dumps(bank, ensure_ascii=False, default=float) + ";\n", encoding="utf-8")
     print(f"{len(questions)} manipulation questions ({len(excel_q)} Excel, {len(sql_q)} SQL), "
